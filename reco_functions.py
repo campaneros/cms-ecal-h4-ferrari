@@ -108,7 +108,8 @@ def generic_reco(waves, detector_name, **kwargs):
 
   charge = np.sum(signal_window, axis=2)
   charge[mask_under_thr] = 0
-
+  if charge_to_peak_conversion:
+     charge = charge * charge_to_peak_slope
   tWave = np.repeat(np.arange(0, waves.shape[2])[np.newaxis, :], charge.shape[1], axis=0)/sampling_rate
   tWave = np.repeat(tWave[np.newaxis, :], charge.shape[0], axis=0)
   ich = np.repeat(np.arange(0, waves.shape[1])[np.newaxis, :], charge.shape[0], axis=0)

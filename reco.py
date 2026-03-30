@@ -83,6 +83,11 @@ def main(arguments):
             reco_dict[detector]["mask"], reco_dict[detector]["arrays"] = reco_functions.generic_reco(
               waves, detector, id=chid_dict, geo_dict=geo_dict, **reco_conf #n_cpus=args.n_cpus
             )
+
+            conversion_factor = reco_conf.get("charge_to_peak_slope", 1.0)
+            if conversion_factor is not None:
+                do_conv = json_dict["detectors"]["ecal"]["reco_conf"].get("charge_to_peak_conversion", False)
+
             print(f"{detector}, selected: {reco_dict[detector]['mask'].sum()} events")
         elif detector == "hodo":
             reco_dict[detector]["mask"], reco_dict[detector]["arrays"] = reco_functions.hodo_reco(tree, detector)
@@ -125,13 +130,12 @@ def main(arguments):
       if not os.path.exists(f"{args.plot_output_folder}/../jsroot_viewer.php"):
           os.system(f"cp {args.plot_output_folder}/../../jsroot_viewer.php {args.plot_output_folder}/../jsroot_viewer.php")
 
+      f = ROOT.TFile(f"{args.plot_output_folder}/histos.root", "recreate")
 
-      f = ROOT.TFile(f"histos.root", "recreate")
-
-      #plotconf_df.apply(lambda row: plot_functions.plot(row, reco_dict, f"{args.plot_output_folder}/", f), axis=1)
+      plotconf_df.apply(lambda row: plot_functions.plot(row, arrays, f"{args.plot_output_folder}/", f), axis=1)
       #f.Close()
-      chunk_size = (len(plotconf_df) + args.n_cpus - 1) // args.n_cpus  # ceil division
-      chunks = [(plotconf_df.iloc[i*chunk_size : (i+1)*chunk_size], arrays, args.plot_output_folder, {"f": f}) for i in range(args.n_cpus)]
+      #chunk_size = (len(plotconf_df) + args.n_cpus - 1) // args.n_cpus  # ceil division
+      #chunks = [(plotconf_df.iloc[i*chunk_size : (i+1)*chunk_size], arrays, args.plot_output_folder, {"f": f}) for i in range(args.n_cpus)]
 
   #    try:
   #        ctx = mp.get_context("spawn")
@@ -144,7 +148,7 @@ def main(arguments):
   #        print("\n\n\nPLOTS IN PARALLEL in broken pipe: FALLING BACK TO SERIAL\n\n")
   #        for chunk in chunks: plot_functions.plot_chunk(chunk)
   #
-      for chunk in chunks: plot_functions.plot_chunk(chunk)
+      #for chunk in chunks: plot_functions.plot_chunk(chunk)
       f.Close()
       print(f"plotting took {-time_plot + time.time():.1f} s")
 

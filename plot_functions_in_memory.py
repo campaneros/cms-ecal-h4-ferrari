@@ -152,6 +152,49 @@ def plot(row, uproot_dict, outputfolder, f=None, just_draw=False):
 
     ROOT.gROOT.SetBatch(ROOT.kTRUE)
 
+    c = ROOT.TCanvas(f"{name}_canvas")
+    c.cd()
+
+    if name == "peak_vs_charge":
+      x = eval_formula(row.x,uproot_dict)/0.271
+      y = eval_formula(row.y,uproot_dict)
+
+      graph=ROOT.TGraph(len(x),x.astype(np.float64),y.astype(np.float64))
+      graph.SetTitle("Peak vs Charge;Charge;Peak value")
+      graph.SetMarkerStyle(24)
+      graph.SetMarkerSize(0.8)
+      graph.SetMarkerColor(ROOT.kBlack)
+      ROOT.gStyle.SetOptTitle(1)
+      ROOT.gStyle.SetTitleAlign(23)
+      ROOT.gStyle.SetTitleX(0.5)
+      graph.Draw("AP")
+      graph.SetLineStyle(0)
+
+      fit = ROOT.TF1("fit", "pol1")
+      graph.Fit(fit)
+      ROOT.gStyle.SetOptFit(0)
+
+      slope = fit.GetParameter(1)
+      chi2  = fit.GetChisquare()
+      df = fit.GetNDF()
+
+      pave = ROOT.TPaveText(0.15, 0.7, 0.35, 0.88, "NDC")
+      pave.SetFillColor(0)
+      pave.SetTextFont(42)
+      pave.SetTextSize(0.03)
+      pave.SetBorderSize(1)
+
+      pave.AddText(f"Slope = {slope:.3f}")
+#      pave.AddText(f"#chi^2 = {chi2:.2f}")
+      pave.Draw()
+      c.Print(f"{outputfolder}/{row.folder}/{name}_graph.pdf")
+      graph.Write()
+
+      json_dict["detectors"]["ecal"]["reco_conf"]["charge_to_peak_slope"] = slope
+      with open(args.output_json, "w") as f:
+          json.dump(json_dict, f, indent=4)
+
+
     if just_draw:
       for key in f.GetListOfKeys():
         obj = key.ReadObj()
@@ -160,9 +203,6 @@ def plot(row, uproot_dict, outputfolder, f=None, just_draw=False):
             f.Delete(f"{key.GetName()};{key.GetCycle()}")
         except TypeError:
           pass
-
-    c = ROOT.TCanvas(f"{name}_canvas")
-    c.cd()
 
     if just_draw:
       pass
@@ -279,15 +319,16 @@ def plot(row, uproot_dict, outputfolder, f=None, just_draw=False):
     #print(f"saving png took {time.time() - t_save}s", file=sys.stderr, flush=True)
 
     t_save = time.time()
+    f.cd()
     if just_draw: c.Write("", ROOT.TObject.kOverwrite)
     else:
       #t_save = time.time()
       c.Write()
       #print(f"writing canvas  took {time.time() - t_save}s", file=sys.stderr, flush=True)
       t_save = time.time()
-      c.Print(f"{outputfolder}/{row.folder}/{name}_canvas.pdf")
-      print(f"printing canvas to PDF took {time.time() - t_save}s", file=sys.stderr, flush=True)
-      t_save = time.time()
+      #c.Print(f"{outputfolder}/{row.folder}/{name}_canvas.pdf")
+      #print(f"printing canvas to PDF took {time.time() - t_save}s", file=sys.stderr, flush=True)
+      #t_save = time.time()
       if str(row.y).strip() != "0" and str(row.z).strip() != "0": h.Scale(h.GetEntries())
       print(f"rescaling h took {time.time() - t_save}s", file=sys.stderr, flush=True)
       #t_save = time.time()

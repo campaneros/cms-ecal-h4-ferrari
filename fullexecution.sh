@@ -1,4 +1,4 @@
-#!/bin/bash
+#61200APDs14648VPTs#!/bin/bash
 
 # --- launch settings with beam|laser as input parameter ---
 if [ "$#" -lt 3 ]; then
@@ -40,7 +40,8 @@ echo "spill type is: " $option
 
 SPILL_TYPE="${SPILL}_${option}"
 
-PLOT_MAIN_FOLDER="/eos/user/m/mcampana/www/h4dqm/ECAL_TB_2025"
+#PLOT_MAIN_FOLDER="/eos/user/m/mcampana/www/h4dqm/ECAL_TB_2025"
+PLOT_MAIN_FOLDER="/eos/user/l/lfaiella/www/h4dqm/ECAL_TB_2025"
 
 WORKING_DIR="/afs/cern.ch/user/e/ecalgit/ECAL_TB2026_dev/"
 

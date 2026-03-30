@@ -75,7 +75,9 @@
                 "sampling_rate": 0.16,
                 "interpolation_factor": 500,
                 "save_mean_rms_all_samples": true,
-                "save_only_5x5_info": false
+                "save_only_5x5_info": false,
+                "charge_to_peak_slope": 0.271,
+                "charge_to_peak_conversion": true
             }
         },
 
@@ -97,7 +99,9 @@
                 "do_5x5": false,
                 "do_timing": false,
                 "save_some_waves": true,
-                "sampling_rate": 0.08
+                "sampling_rate": 0.08,
+                "charge_to_peak_slope": 0.271,
+                "charge_to_peak_conversion":false
             }
     	},
 
@@ -122,7 +126,9 @@
                 "rise_samples_pre_peak": 10,
                 "rise_samples_post_peak": 2,
                 "cf": 0.2,
-                "interpolation_factor": 40
+                "interpolation_factor": 40,
+                "charge_to_peak_slope": 0.271,
+                "charge_to_peak_conversion": false
             }
         },
         "digi_bcp_clock_reading": {
@@ -148,7 +154,9 @@
                 "timing_method": "fixed_thr",
                 "timing_thr": 1100,
                 "interpolation_factor": 40,
-                "baseline_subtract": false
+                "baseline_subtract": false,
+                "charge_to_peak_slope": 0.271,
+                "charge_to_peak_conversion": false
             }
         },
 
@@ -176,7 +184,9 @@
                 "timing_thr": 1500,
                 "interpolation_factor": 40,
                 "baseline_subtract": true,
-                "threshold_not_using_peak": 1500
+                "threshold_not_using_peak": 1500,
+                "charge_to_peak_slope": 0.271,
+                "charge_to_peak_conversion": false
             }
        	},
 
@@ -195,7 +205,9 @@
                 "seed_charge_threshold": 0,
                 "do_5x5": false,
                 "do_timing": false,
-                "save_some_waves": true
+                "save_some_waves": true,
+                "charge_to_peak_slope": 0.271,
+                "charge_to_peak_conversion": false
             }
         },
 
@@ -214,7 +226,9 @@
                 "seed_charge_threshold": 0,
                 "do_5x5": false,
                 "do_timing": false,
-                "save_some_waves": true
+                "save_some_waves": true,
+                "charge_to_peak_slope": 0.271,
+                "charge_to_peak_conversion": false
             }
         }
     }

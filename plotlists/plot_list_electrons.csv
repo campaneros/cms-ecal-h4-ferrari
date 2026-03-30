@@ -1,4 +1,5 @@
 name,title,folder,x,y,z,cuts,color,binsnx,binsminx,binsmaxx,binsny,binsminy,binsmaxy,contours,xlabel,ylabel,zlabel,cluster,logz,tt
+peak_vs_charge,PeakChargeConversion,main,ecal_charge[239],ecal_peak[239],,,kBlack,,,,,,,,Charge[ADC],Peak[ADC],,,,
 charge_sum_5x5, ,main,ecal_charge_sum_5x5,0,0, ,kBlue,1000,0,40000,0,0,0,0,charge_{5x5} [ADC counts x #samples],ADC counts x #samples, , , ,
 highest_ch_peak, ,main,"np.take_along_axis( ((ecal_peak)), ((ecal_highest_ch))[:, None].astype(int), axis=1)",0,0, ,kBlue,1000,0,40000,0,0,0,0,highest_ch_peak,ADC counts x #samples, , , ,
 mean_charge, ,main,ecal_ieta,ecal_iphi,ecal_charge, ,0,60,0.5,60.5,10,0.5,10.5,25,eta,phi,ADC counts x #samples,0,0,1
