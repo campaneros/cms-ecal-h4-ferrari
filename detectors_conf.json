@@ -77,7 +77,7 @@
                 "save_mean_rms_all_samples": true,
                 "save_only_5x5_info": false,
                 "charge_to_peak_slope": 0.271,
-                "charge_to_peak_conversion": true
+                "charge_to_peak_conversion": false
             }
         },
 

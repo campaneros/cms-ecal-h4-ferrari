@@ -156,8 +156,8 @@ def plot(row, uproot_dict, outputfolder, f=None, just_draw=False):
     c.cd()
 
     if name == "peak_vs_charge":
-      x = eval_formula(row.x,uproot_dict)/0.271
-      y = eval_formula(row.y,uproot_dict)
+      x = eval_formula(row.x,uproot_dict)/0.271    #/0.271 dato che le cariche sono moltiplicate per questo fattore
+      y = eval_formula(row.y,uproot_dict)          #se charge_to_peak_conversion = true
 
       graph=ROOT.TGraph(len(x),x.astype(np.float64),y.astype(np.float64))
       graph.SetTitle("Peak vs Charge;Charge;Peak value")

@@ -1,11 +1,10 @@
-import ROOT
+import os,json,uproot,argparse,sys,ROOT
 import numpy as np
 import array
-import uproot
-import sys
 from math import sqrt
 
-def gaussFit(h,name,Run, xmin=-1, xmax=-1):
+
+def gaussFit(h,name,Run,output_dir, xmin=-1, xmax=-1):
 
     x = ROOT.RooRealVar(f"x_{name}","E/E_{True}",
                         h.GetXaxis().GetXmin(),
@@ -41,9 +40,17 @@ def gaussFit(h,name,Run, xmin=-1, xmax=-1):
 
     frame = x.frame()
     data.plotOn(frame)
-    model.plotOn(frame, ROOT.RooFit.Range("fitRange"),ROOT.RooFit.NormRange("fitRange"))
+
+    if xmin >= 0 and xmax >= 0:
+        model.plotOn(frame,
+                   ROOT.RooFit.Range("fitRange"),
+                   ROOT.RooFit.NormRange("fitRange"))
+    else:
+        model.plotOn(frame)
 
     frame.Draw()
+
+    chi2 = frame.chiSquare()
 
     pt = ROOT.TPaveText(0.60, 0.65, 0.88, 0.88, "NDC")
     pt.SetFillColor(0)
@@ -53,19 +60,23 @@ def gaussFit(h,name,Run, xmin=-1, xmax=-1):
 
     pt.AddText(f"m_{{core}} = {mean.getVal():.3g} #pm {mean.getError():.3g}")
     pt.AddText(f"#sigma_{{core}} = {sigma.getVal():.3g} #pm {sigma.getError():.3g}")
+    pt.AddText(f"#chi^2_{{core}} = {chi2:.3g}" )
 
     pt.Draw()
 
     canvas.Update()
 
-    canvas.SaveAs(f"/eos/user/l/lfaiella/CMS_ECAL_Thesis/Plots_resolution_april/FitPlots_gauss/fit_gauss_run_{Run}.root")
+    filename = f"fit_gauss_run_{Run}"
+    output_path = os.path.join(output_dir, filename)
+    canvas.SaveAs(output_path + ".pdf")
+    canvas.SaveAs(output_path + ".root")
 
     return {
         "mean": (mean.getVal(), mean.getError()),
         "sigma": (sigma.getVal(), sigma.getError())
     }
 
-def cbFit(h,name,Run,xmin=-1,xmax=-1):
+def cbFit(h,name,Run,output_dir,xmin=-1,xmax=-1):
 
     x = ROOT.RooRealVar(f"x_{name}", "E/E_{True}", h.GetXaxis().GetXmin(), h.GetXaxis().GetXmax())
 
@@ -100,7 +111,6 @@ def cbFit(h,name,Run,xmin=-1,xmax=-1):
 
     result = model.fitTo(data, *fitArgs)
 
-
     canvas = ROOT.TCanvas()
 
     frame = x.frame()
@@ -108,29 +118,129 @@ def cbFit(h,name,Run,xmin=-1,xmax=-1):
     model.plotOn(frame, ROOT.RooFit.Range("fitRange"),ROOT.RooFit.NormRange("fitRange"))
 
     frame.Draw()
+
+    chi2 = frame.chiSquare()
+
+    pt = ROOT.TPaveText(0.60, 0.65, 0.88, 0.88, "NDC")
+    pt.SetFillColor(0)
+    pt.SetTextFont(42)
+    pt.SetBorderSize(0)
+    pt.SetTextSize(0.05)
+
+    pt.AddText(f"m_{{core}} = {mean.getVal():.3g} #pm {mean.getError():.3g}")
+    pt.AddText(f"#sigma_{{core}} = {sigma.getVal():.3g} #pm {sigma.getError():.3g}")
+    pt.AddText(f"#chi^2_{{core}} = {chi2:.3g}" )
+
+    pt.Draw()
+
     canvas.Update()
 
-    canvas.SaveAs(f"/eos/user/l/lfaiella/CMS_ECAL_Thesis/Plots_resolution_april/FitPlots_dcb/fit_dcb_run_{Run}.root")
+    filename = f"fit_dcb_run_{Run}"
+    output_path = os.path.join(output_dir, filename)
+    canvas.SaveAs(output_path + ".pdf")
+    canvas.SaveAs(output_path + ".root")
 
     return {
         "mean": (mean.getVal(), mean.getError()),
         "sigma": (sigma.getVal(), sigma.getError())
     }
 
-def main():
 
-    if len(sys.argv) < 2:
-        print("Usage: python3 plotter_resolution.py [gauss|dcb]")
-        sys.exit(1)
+def lognFit(h, name, Run, output_dir, xmin=-1, xmax=-1):
 
-    fit_type = sys.argv[1].lower()
+    x = ROOT.RooRealVar(f"x_{name}", "E/E_{True}",
+                        h.GetXaxis().GetXmin(),
+                        h.GetXaxis().GetXmax())
 
-    if fit_type not in ["gauss", "dcb"]:
-        print("Error: choose 'gauss' or 'dcb'")
-        sys.exit(1)
+    data = ROOT.RooDataHist(f"data_{name}", "data",
+                            ROOT.RooArgList(x), h)
 
-    Ebins=[20,40,60,80,100,120,150,200,250]
-    Run=[19366,19352,19348,19347,19372,19343,19344,19327,19293]
+    peak  = h.GetBinCenter(h.GetMaximumBin())
+    sigma0 = h.GetRMS()
+
+    eta   = ROOT.RooRealVar(f"eta_{name}",   "eta",   0.1, 0.01, 1.0)
+    sigma = ROOT.RooRealVar(f"sigma_{name}", "sigma", sigma0, 0.1, 10000)
+    mean  = ROOT.RooRealVar(f"mean_{name}",  "peak",  peak, peak-3*sigma0, peak+3*sigma0)
+    amp = ROOT.RooRealVar("amp", "amplitude", 0.3*h.Integral(), 0, 1e7)
+
+    sqrt2pi = ROOT.RooConstVar("sqrt2pi", "sqrt2pi", (2*3.14159265)**0.5)
+    c235    = ROOT.RooConstVar("c235", "2.35 const", 2.35)
+
+    expr = "x[4] * (x[1] / (x[5] * x[2] * ((2/x[6]) * log(x[1]*x[6]/2 + sqrt(1 + pow(x[1]*x[6]/2,2)))))) * exp(-0.5 * pow(log(max(1e-4, 1 - (x[1]/x[2])*(x[0] - x[3])))/((2/x[6]) * log(x[1]*x[6]/2 + sqrt(1 + pow(x[1]*x[6]/2,2)))) ,2))"
+
+    logn_pdf = ROOT.RooGenericPdf(f"logn_{name}","log-normal-like",expr,ROOT.RooArgList(x, eta, sigma, mean, amp, sqrt2pi,c235))
+    nsig = ROOT.RooRealVar(f"nsig_{name}", "signal yield",h.Integral(),0.0,10.0*h.Integral())
+    model = ROOT.RooAddPdf(f"model_{name}", "extended logn model",ROOT.RooArgList(logn_pdf),ROOT.RooArgList(nsig))
+
+    fitArgs = [
+        ROOT.RooFit.Extended(True),
+        ROOT.RooFit.Save(),
+        ROOT.RooFit.PrintLevel(-1)
+    ]
+
+    if xmin >= 0 and xmax >= 0:
+        x.setRange("fitRange", xmin, xmax)
+        fitArgs.insert(0, ROOT.RooFit.Range("fitRange"))
+
+    result = model.fitTo(data, *fitArgs)
+
+    canvas = ROOT.TCanvas()
+    frame = x.frame()
+
+    data.plotOn(frame)
+    model.plotOn(frame,ROOT.RooFit.Range("fitRange"),ROOT.RooFit.NormRange("fitRange"))
+
+    frame.Draw()
+
+    chi2 = frame.chiSquare()
+
+    pt = ROOT.TPaveText(0.60, 0.65, 0.88, 0.88, "NDC")
+    pt.SetFillColor(0)
+    pt.SetTextFont(42)
+    pt.SetBorderSize(0)
+    pt.SetTextSize(0.05)
+
+    pt.AddText(f"Peak = {mean.getVal():.3g} ± {mean.getError():.3g}")
+    pt.AddText(f"Sigma = {sigma.getVal():.3g} ± {sigma.getError():.3g}")
+    pt.AddText(f"#chi^2_{{core}} = {chi2:.3g}" )
+
+    pt.Draw()
+
+    canvas.Update()
+
+    filename = f"fit_logn_run_{Run}"
+    output_path = os.path.join(output_dir, filename)
+    canvas.SaveAs(output_path + ".pdf")
+    canvas.SaveAs(output_path + ".root")
+
+    return {
+        "mean": (mean.getVal(), mean.getError()),
+        "sigma": (sigma.getVal(), sigma.getError())
+    }
+
+
+def main(arguments):
+
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument("-g",  f"--fit-type", type=str, required=True, help="fit type")
+    parser.add_argument("-i",  f"--input-dir", type=str, required=True, help="input directory containing ROOT file with unpacked tree")
+    parser.add_argument("-ro", f"--plot-output-dir", type=str, required=True, help="directory for output plots")
+    parser.add_argument("-f", f"--fit-output-dir", type=str, required=True, help="directory for fits")
+    parser.add_argument("-j", f"--run-info-json", type=str, required=False, help="run and energy sample")
+
+    args = parser.parse_args(arguments)
+
+    json_dict = json.load(open(args.run_info_json, "r"))
+    fit_type=args.fit_type
+
+    input_dir=args.input_dir
+    plot_output_dir=args.plot_output_dir
+    fit_output_dir=args.fit_output_dir
+    os.makedirs(plot_output_dir, exist_ok=True)
+    os.makedirs(fit_output_dir, exist_ok=True)
+
+    Run=json_dict["global"]["run info"]["run list"] #[20,40,60,80,100,120,150,200,250]
+    Ebins=json_dict["global"]["run info"]["run energies"] #[19366,19352,19348,19347,19372,19343,19344,19327,19293]
     En,eEn,mu,emu,sigma,esigma = [],[],[],[],[],[]
     roofit_objects = []
 
@@ -146,7 +256,11 @@ def main():
         run=Run[ie]
         energy=Ebins[ie]
 
-        file=uproot.open(f"/eos/cms/store/group/dpg_ecal/comm_ecal/upgrade/testbeam/ECALTB_H4_Oct2025/reco/run_{run}/{run}_0002_reco.root")
+        input_filename = f"run_{run}/{run}_0002_reco.root"
+        input_path = os.path.join(input_dir, input_filename)
+        print("Opening file:", input_path)
+        file = uproot.open(input_path)
+        print("File opened")
 
         tree=file["tree"]
         charge=tree["ecal_charge_sum_5x5"].array(library="np")
@@ -161,21 +275,22 @@ def main():
         h.GetXaxis().SetTitle("Charge [ADC]")
         h.GetYaxis().SetTitle("Nevents")
 
-#        if run == 19327:
-#            h.Draw()
-            #h.SetAxisRange(0,800)
-#            c.SaveAs(f"/eos/user/l/lfaiella/CMS_ECAL_Thesis/Plots_resolution_april/Test2.pdf")
+        max_bin = h.GetMaximumBin()
+        max_position = h.GetBinCenter(max_bin)
+        max_value = h.GetBinContent(max_bin)
+        bin1 = h.FindFirstBinAbove(max_value/2)
+        bin2 = h.FindLastBinAbove(max_value/2)
+        fwhm = h.GetBinCenter(bin2) - h.GetBinCenter(bin1)
 
-        mean = h.GetMean()
-        rms  = h.GetRMS()
-
-        xmin = mean - 2*rms
-        xmax = mean + 2*rms
+        xmin = max_position - 2*fwhm
+        xmax = max_position + 2*fwhm
 
         if fit_type=="gauss":
-            results = gaussFit(h,h.GetName(),run,xmin,xmax)
+            results = gaussFit(h,h.GetName(),run,fit_output_dir,xmin,xmax)
         if fit_type=="dcb":
-            results = cbFit(h,h.GetName(),run,xmin,xmax)
+            results = cbFit(h,h.GetName(),run,fit_output_dir,xmin,xmax)
+        if fit_type=="logn":
+            results = lognFit(h,h.GetName(),run,fit_output_dir,xmin,xmax)
 
         roofit_objects.append(results)
 
@@ -196,6 +311,7 @@ def main():
         res2.SetPoint(ie,energy,100*(sig_val/mu_val))
         res2.SetPointError(ie,0,resolution_error)
 
+
     lin.SetMarkerStyle(24)
     lin.SetMarkerSize(0.8)
     lin.SetMarkerColor(ROOT.kBlack)
@@ -211,15 +327,34 @@ def main():
 
     lin.SetTitle(f"Energy linearity ({fit_type} fit);Mu_charge_5x5 [ADC];Beam energy [GeV]")
     lin.Draw("AP")
-    c.SaveAs(f"/eos/user/l/lfaiella/CMS_ECAL_Thesis/Plots_resolution_april/Energy_linearity_{fit_type}.pdf")
+    filename_lin = f"Energy_linearity_{fit_type}"
+    output_path_lin = os.path.join(plot_output_dir, filename_lin)
+    c.SaveAs(output_path_lin + ".pdf")
+    c.SaveAs(output_path_lin + ".root")
+#    c.SaveAs(f"/eos/user/l/lfaiella/www/h4dqm/ECAL_TB_2025/Plots_resolution_april/Energy_linearity_{fit_type}.pdf")
+#    c.SaveAs(f"/eos/user/l/lfaiella/www/h4dqm/ECAL_TB_2025/Plots_resolution_april/Energy_linearity_{fit_type}.root")
+    c.Clear()
+
     res.SetTitle(f"Sigma vs Beam energy ({fit_type} fit);Beam energy [GeV];Sigma_charge_5x5 [ADC]")
     res.Draw("AP")
-    c.SaveAs(f"/eos/user/l/lfaiella/CMS_ECAL_Thesis/Plots_resolution_april/SigmavsBeamEn_{fit_type}.pdf")
+    filename_res = f"SigmavsBeamEn_{fit_type}"
+    output_path_res = os.path.join(plot_output_dir, filename_res)
+    c.SaveAs(output_path_res + ".pdf")
+    c.SaveAs(output_path_res + ".root")
+#    c.SaveAs(f"/eos/user/l/lfaiella/www/h4dqm/ECAL_TB_2025/Plots_resolution_april/SigmavsBeamEn_{fit_type}.pdf")
+#    c.SaveAs(f"/eos/user/l/lfaiella/www/h4dqm/ECAL_TB_2025/Plots_resolution_april/SigmavsBeamEn_{fit_type}.root")
+    c.Clear()
+
     res2.SetTitle(f"Resolution ({fit_type} fit);Beam energy[GeV];Sigma/Mu_(charge_5x5) [%]")
     res2.Draw("AP")
-    c.SaveAs(f"/eos/user/l/lfaiella/CMS_ECAL_Thesis/Plots_resolution_april/Resolution_{fit_type}.pdf")
+    filename_res2 = f"Resolution_{fit_type}"
+    output_path_res2 = os.path.join(plot_output_dir, filename_res2)
+    c.SaveAs(output_path_res2 + ".pdf")
+    c.SaveAs(output_path_res2 + ".root")
+#    c.SaveAs(f"/eos/user/l/lfaiella/www/h4dqm/ECAL_TB_2025/Plots_resolution_april/Resolution_{fit_type}.pdf")
+#    c.SaveAs(f"/eos/user/l/lfaiella/www/h4dqm/ECAL_TB_2025/Plots_resolution_april/Resolution_{fit_type}.root")
 
 
     input("finito")
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
