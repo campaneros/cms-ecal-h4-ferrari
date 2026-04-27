@@ -3,7 +3,7 @@ import numpy as np
 import array
 import glob
 from math import sqrt
-
+import csv
 
 def has_branch(fname, branch):
     f = ROOT.TFile.Open(fname)
@@ -253,6 +253,7 @@ def main(arguments):
 
     Run=json_dict["global"]["run info"]["run list"]
     Ebins=json_dict["global"]["run info"]["run energies"]
+    Channels=json_dict["global"]["run info"]["5x5 channels"]
     En,eEn,mu,emu,sigma,esigma = [],[],[],[],[],[]
     roofit_objects = []
 
@@ -261,6 +262,17 @@ def main(arguments):
     res = ROOT.TGraphErrors(len(Ebins))
     res2 = ROOT.TGraphErrors(len(Ebins))
 
+
+    intercalib_dict = {}
+
+    with open("intercalibration_info.csv") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            ch = int(row["seed_channel"])
+            ic = float(row["calibrationfactor"])
+            intercalib_dict[ch] = ic
+
+
     for ie in range(len(Ebins)):
 
         c = ROOT.TCanvas()
@@ -268,11 +280,6 @@ def main(arguments):
 
         run=Run[ie]
         energy=Ebins[ie]
-
-        good_files = []
-
-        charge_list = []
-        peak_list = []
 
         chain = ROOT.TChain("tree")
 
@@ -287,81 +294,78 @@ def main(arguments):
         print(f"Run {run}: added {chain.GetNtrees()} files")
 
 
-        h = ROOT.TH1F(f"Charge_5x5_{run}", "", 1000, 0, 50000)
-        h2=ROOT.TH2F(f"Peak_vs_Charge_seed_{run}","",500,0,50000,500,0,50000)
+        h = ROOT.TH1F(f"Charge_5x5_{run}_calibrated", "", 1000, 0, 5)
+        #h2=ROOT.TH2F(f"Peak_vs_Charge_seed_{run}","",500,0,50000,500,0,50000)
 
-        chain.Draw(f"ecal_charge_sum_5x5>>Charge_5x5_{run}", "", "goff")
+        Charge_sum_5x5_string = "+".join([f"ecal_charge[{ch}] * {intercalib_dict[ch]}" for ch in Channels])
 
+        #chain.Draw(f"ecal_charge_sum_5x5>>Charge_5x5_{run}", "", "goff")
+        chain.Draw(f"{Charge_sum_5x5_string}>>Charge_5x5_{run}_calibrated", "", "goff")
         chain.Draw(f"ecal_peak[ecal_seed_ch]:ecal_charge_seed>>Peak_vs_Charge_seed_{run}", "", "goff")
 
         h.Draw()
 
-        h2.Draw()
+        #h2.Draw()
 
-        MinMaxX=np.zeros(2).astype(float)
-
-        Rgx=np.array([0.08,0.99],float)
-        h2.ProjectionX().GetQuantiles(2,MinMaxX,Rgx)
-
-        xmin,xmax = MinMaxX
-        Rgy=np.array([0.08,0.99],float)
-
-        MinMaxY=np.zeros(2).astype(float)
-        h2.ProjectionY().GetQuantiles(2,MinMaxY,Rgy)
-
-        ymin,ymax = MinMaxY
-
-        print("ranges (x, y)", xmin,xmax, ymin,ymax)
-        h2.GetXaxis().SetRangeUser(xmin, xmax)
-        h2.GetYaxis().SetRangeUser(ymin, ymax)
-        h2.SetStats(0)
-        h2.SetTitle("Peak vs Charge;Charge[ADC];Peak value [ADC]")
-        h2.GetXaxis().SetRangeUser(xmin, xmax)
-        h2.GetYaxis().SetRangeUser(ymin, ymax)
-        h2.SetMarkerStyle(24)
-        h2.SetMarkerSize(0.8)
-        h2.SetMarkerColor(ROOT.kBlack)
-        ROOT.gStyle.SetOptTitle(1)
-        ROOT.gStyle.SetTitleAlign(23)
-        ROOT.gStyle.SetTitleX(0.5)
-        h2.Draw("COLZ")
-
-        hprof=h2.ProfileX()
-        hprof.Draw("same")
-
-        fit = ROOT.TF1("fit", "pol1",xmin,xmax)
-        hprof.Fit(fit,"R")
-
-        slope = fit.GetParameter(1)
-        chi2  = fit.GetChisquare()
-        ndf = fit.GetNDF()
-
-        pave = ROOT.TPaveText(0.15, 0.7, 0.35, 0.88, "NDC")
-        pave.SetFillColor(0)
-        pave.SetTextFont(42)
-        pave.SetTextSize(0.03)
-        pave.SetBorderSize(1)
-
-        pave.AddText(f"Slope = {slope:.3f}")
-        pave.AddText(f"#chi^2 = {chi2:.2f}")
-        pave.AddText(f"Ndof = {ndf}")
-        pave.Draw()
-        fit.Draw("same")
-
-        filename_h2 = f"PeakvsChargeFit_{run}"
-        output_path_h2 = os.path.join(plot_output_dir, filename_h2)
-        c.SaveAs(output_path_h2 + ".pdf")
-        c.SaveAs(output_path_h2 + ".root")
-        c.Clear()
+#        MinMaxX=np.zeros(2).astype(float)
+#
+#        Rgx=np.array([0.08,0.99],float)
+#        h2.ProjectionX().GetQuantiles(2,MinMaxX,Rgx)
+#
+#        xmin,xmax = MinMaxX
+#        Rgy=np.array([0.08,0.99],float)
+#
+#        MinMaxY=np.zeros(2).astype(float)
+#        h2.ProjectionY().GetQuantiles(2,MinMaxY,Rgy)
+#
+#        ymin,ymax = MinMaxY
+#
+#        print("ranges (x, y)", xmin,xmax, ymin,ymax)
+#        h2.GetXaxis().SetRangeUser(xmin, xmax)
+#        h2.GetYaxis().SetRangeUser(ymin, ymax)
+#        h2.SetStats(0)
+#        h2.SetTitle("Peak vs Charge;Charge[ADC];Peak value [ADC]")
+#        h2.GetXaxis().SetRangeUser(xmin, xmax)
+#        h2.GetYaxis().SetRangeUser(ymin, ymax)
+#        h2.SetMarkerStyle(24)
+#        h2.SetMarkerSize(0.8)
+#        h2.SetMarkerColor(ROOT.kBlack)
+#        ROOT.gStyle.SetOptTitle(1)
+#        ROOT.gStyle.SetTitleAlign(23)
+#        ROOT.gStyle.SetTitleX(0.5)
+#        h2.Draw("COLZ")
+#
+#        hprof=h2.ProfileX()
+#        hprof.Draw("same")
+#
+#        fit = ROOT.TF1("fit", "pol1",xmin,xmax)
+#        hprof.Fit(fit,"R")
+#
+#        slope = fit.GetParameter(1)
+#        chi2  = fit.GetChisquare()
+#        ndf = fit.GetNDF()
+#
+#        pave = ROOT.TPaveText(0.15, 0.7, 0.35, 0.88, "NDC")
+#        pave.SetFillColor(0)
+#        pave.SetTextFont(42)
+#        pave.SetTextSize(0.03)
+#        pave.SetBorderSize(1)
+#
+#        pave.AddText(f"Slope = {slope:.3f}")
+#        pave.AddText(f"#chi^2 = {chi2:.2f}")
+#        pave.AddText(f"Ndof = {ndf}")
+#        pave.Draw()
+#        fit.Draw("same")
+#
+#        filename_h2 = f"PeakvsChargeFit_{run}"
+#        output_path_h2 = os.path.join(plot_output_dir, filename_h2)
+#        c.SaveAs(output_path_h2 + ".pdf")
+#        c.SaveAs(output_path_h2 + ".root")
+#        c.Clear()
 
 
         h.GetXaxis().SetTitle("Charge [ADC]")
         h.GetYaxis().SetTitle("Nevents")
-
-#        print("Entries in chain:", chain.GetEntries())
-#        print("DF snapshot entries:", df.Count().GetValue())
-
-        print(run, h.Integral())
 
         max_bin = h.GetMaximumBin()
         max_position = h.GetBinCenter(max_bin)
@@ -427,7 +431,7 @@ def main(arguments):
     lin.Draw("AP")
 
     ROOT.gStyle.SetOptFit(111)
-    fit = ROOT.TF1("fit", "pol1",0,25000)
+    fit = ROOT.TF1("fit", "pol1",0,5)
     lin.Fit(fit,"R")
     canvas.Update()
 

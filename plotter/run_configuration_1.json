@@ -1,0 +1,11 @@
+{
+    "global": {
+        "run info": {
+                    "run list": [19498],
+                    "run energies": [100],
+                    "seed channel": [239],
+                    "eta center": [53],
+                    "phi center": [6]
+        }
+    }
+}
