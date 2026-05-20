@@ -1,4 +1,3 @@
-
 start=$(date +%s%3N)  # milliseconds
 
 

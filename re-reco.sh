@@ -1,5 +1,3 @@
-#/cvmfs/sft.cern.ch/lcg/views/LCG_106/x86_64-el9-gcc13-opt/setup.sh to make the hadd
-
 RUN=$1
 
 RECO_FOLDER="/eos/cms/store/group/dpg_ecal/comm_ecal/upgrade/testbeam/ECALTB_H4_Oct2025/reco/"

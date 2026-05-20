@@ -3,8 +3,6 @@ MAIN_FOLDER=$2
 
 option="beam"
 
-MAX_JOBS=12
-
 HADD_NOW_DIRS="$MAIN_FOLDER/to_hadd_now.txt"
 HADD_GLOB_BUFFER="$MAIN_FOLDER/to_hadd_buffer.txt"
 
@@ -18,3 +16,4 @@ while true; do
   cat ${HADD_GLOB_BUFFER}
   sleep 2
 done
+

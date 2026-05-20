@@ -4,16 +4,16 @@ import awkward as ak
 from scipy import ndimage
 import multiprocessing as mp
 
-def decode_ecal_waves(waves):
+def decode_ecal_waves(waves, gain_list):
     bit13_mask = 1 << 13 #validity bit
     bit12_mask = 1 << 12 #gain bit
     amp_mask   = 0x0FFF #amplitude mask
     is_valid = (waves & bit13_mask) != 0
-    gain_is_1 = (waves & bit12_mask) != 0
+    gain_is_high = (waves & bit12_mask) != 0
     amplitudes = waves & amp_mask
-    amplitudes[gain_is_1] *= 10
+    amplitudes[gain_is_high] *= gain_list[gain_is_high]
     #amplitudes[~is_valid] = 0
-    return amplitudes, is_valid, gain_is_1
+    return amplitudes, is_valid, gain_is_high
 
 
 def split(waveforms, threshold=None, pre=5, post=10, baseline_samples=10):
@@ -86,7 +86,7 @@ def generic_reco(waves, detector_name, **kwargs):
 
   t0 = time.time()
 
-  max_idx, baselines, baselines_std, baseline_integral, signal_window = split(waves, pre=signal_samples_pre_peak, post=signal_samples_post_peak, threshold=threshold_not_using_peak)
+  max_idx, baselines, baselines_std, baseline_integral, signal_window = split(waves, pre=signal_samples_pre_peak, post=signal_samples_post_peak, threshold=raw_threshold_before_peak_finding)
   # print(baseline_integral.shape)
 
   print(f"baselines took: {time.time() - t0}")
@@ -134,6 +134,8 @@ def generic_reco(waves, detector_name, **kwargs):
       t0 = time.time()
 
 
+      peak_seed = values_max[:, seed_ch]
+
       charge_seed = charge[:, seed_ch]
       charge_sum_5x5 = np.sum(charge[:, mask_5x5], axis=1)
       charge_sum_5x5 = np.clip(charge_sum_5x5, seed_charge_threshold, None)
@@ -141,15 +143,13 @@ def generic_reco(waves, detector_name, **kwargs):
       mask_low_charge_seed = charge_seed > seed_charge_threshold
 
     # amplitude_map of the 5x5 matrix
-      w0=3.8
       charge_fraction_5x5 = np.zeros(charge.shape)
       charge_fraction_5x5[:, mask_5x5] = charge[:, mask_5x5] / charge_sum_5x5[:, np.newaxis]
 
       print(f"seed/5x5/fractions took: {time.time() - t0}")
       t0 = time.time()
 
-
-      w_log = np.maximum(0.0,w0+np.log(np.clip(charge / charge_sum_5x5[:, np.newaxis], 1e-8, None)))
+      w_log = np.maximum(0.0,w0_centroid + np.log(np.clip(charge / charge_sum_5x5[:, np.newaxis], 1e-8, None)))
       w_log /= (np.sum(w_log, axis=1, keepdims=True))
 
       ieta_centroid = w_log[:, mask_5x5] @ ieta[mask_5x5]
@@ -220,30 +220,36 @@ def generic_reco(waves, detector_name, **kwargs):
     rise = signal_window[:, timing_mask, signal_samples_pre_peak - rise_samples_pre_peak:signal_samples_pre_peak + rise_samples_post_peak]
     rise_interp = ndimage.zoom(rise, [1, 1, interpolation_factor])
 
-    if timing_method == "cf":
-      peak_interp = rise_interp.max(axis=2) #shape: (Events, Channel) - on y axis
-      thresholds = peak_interp*cf #values_max*cf
-      #return_dict.update({f"{det}_interp": interp})
+    if timing_method == "cf" or timing_method == "fixed_thr":
+      if timing_method == "cf":
+        peak_interp = rise_interp.max(axis=2) #shape: (Events, Channel) - on y axis
+        thresholds = peak_interp*cf #values_max*cf
 
-    elif timing_method == "fixed_thr":
-      thresholds = np.ones((rise.shape[0], rise.shape[1]))*timing_thr
+      if timing_method == "fixed_thr":
+        thresholds = np.ones((rise.shape[0], rise.shape[1]))*timing_thr
+
+      pseudo_t = np.zeros((signal_window.shape[0], signal_window.shape[1]))
+      print(f"thresholds, rise_interp shapes: {thresholds.shape}, {rise_interp.shape}")
+      pseudo_t[:, timing_mask] = np.argmax(rise_interp > np.repeat((thresholds)[:, :, np.newaxis], rise_interp.shape[2], axis=2), axis=2).astype(float)
+      pseudo_t[:, timing_mask] += np.random.uniform(low=-0.5, high=0.5, size=(pseudo_t.shape[0], timing_nch))
+      pseudo_t[:, timing_mask] /= float(sampling_rate*interpolation_factor)
+      pseudo_t[:, timing_mask] += ((max_idx[:, timing_mask] - rise_samples_pre_peak) / sampling_rate)
+      return_dict.update({f"{det}_{timing_method}_time": pseudo_t})
+
+    if timing_method == "lsfit":
+
+      fit_amp, fit_time = run_fit(signal_window, mask_under_thr, spline_file, sampling_rate)
+      return_dict.update({f"{det}_{timing_method}_time": fit_time, f"{det}_{timing_method}_amp": fit_amp})
 
     else:
       raise NotImplemented(f"method: {timing_method} not implemented")
-
-    pseudo_t = np.zeros((signal_window.shape[0], signal_window.shape[1]))
-    print(f"thresholds, rise_interp shapes: {thresholds.shape}, {rise_interp.shape}")
-    pseudo_t[:, timing_mask] = np.argmax(rise_interp > np.repeat((thresholds)[:, :, np.newaxis], rise_interp.shape[2], axis=2), axis=2).astype(float)
-    pseudo_t[:, timing_mask] += np.random.uniform(low=-0.5, high=0.5, size=(pseudo_t.shape[0], timing_nch))
-    pseudo_t[:, timing_mask] /= float(sampling_rate*interpolation_factor)
-    pseudo_t[:, timing_mask] += ((max_idx[:, timing_mask] - rise_samples_pre_peak) / sampling_rate)
-    return_dict.update({f"{det}_{timing_method}_time": pseudo_t})
 
   per_ch_info = {
     f"{det}_peak_pos": max_idx, f"{det}_peak_time": max_idx/sampling_rate,
     f"{det}_charge": charge, f"{det}_peak": values_max, f"{det}_baseline_mean": baselines,
     f"{det}_baseline_std": baselines_std, f"{det}_baseline_integral": baseline_integral/baseline_samples*signal_window.shape[2],
   }
+
   if save_mean_rms_all_samples:
     per_ch_info.update({f"{det}_samples_mean": values_mean, f"{det}_samples_std": values_std})
   if geo_dict is not None:
@@ -258,14 +264,6 @@ def generic_reco(waves, detector_name, **kwargs):
       return_dict[key][:, mask_5x5] = per_ch_info[key][:, mask_5x5]
   else:
     return_dict.update(per_ch_info)
-
-  if save_some_waves:
-    drop_waves_mask = np.ones(waves.shape[0], dtype=bool)
-    zero_indices = np.random.choice(waves.shape[0], size=min(10, waves.shape[0]), replace=False)
-    drop_waves_mask[zero_indices] = False
-    waves[drop_waves_mask, ...] = 0
-    tWave[drop_waves_mask, ...] = 0
-    return_dict.update({f"{det}_waves": waves, f"{det}_tWave": tWave, f"{det}_wave_dropped": drop_waves_mask})
 
   return mask_selected_events, return_dict
 
@@ -312,11 +310,8 @@ def bcp_reco(bcp_clk, detector_name):
   return mask, reco_dict
 
 
+#not implemented
 def generic_reco_chunk(args):
-    """
-    Wrapper to handle chunking for multiprocessing.
-    """
-    print("started chunk")
     try:
         waves, det, kwargs = args
         return generic_reco(waves, det, **kwargs)
@@ -324,6 +319,7 @@ def generic_reco_chunk(args):
         print(traceback.format_exc(), file=sys.stderr, flush=True)
 
 
+#not implemented
 def generic_reco_parallel(waves, detector_name, n_cpus=2, **kwargs):
     E = waves.shape[0]
     chunk_size = (E + n_cpus - 1) // n_cpus  # ceil division
@@ -332,17 +328,6 @@ def generic_reco_parallel(waves, detector_name, n_cpus=2, **kwargs):
 
     print("opening pool")
     results = [generic_reco_chunk(chunk) for chunk in chunks]
-
-#    try:
-#        ctx = mp.get_context("spawn")
-#        with ctx.Pool(n_cpus) as pool:
-#            results = pool.imap_unordered(generic_reco_chunk, chunks)
-#    except BrokenPipeError:
-#        print("\n\n\nRECO_PARALLEL in broken pipe: FALLING BACK TO SERIAL\n\n")
-#        for chunk in chunks: generic_reco_chunk(chunk)
-#    except Exception:
-#        print("\n\n\nRECO_PARALLEL in broken pipe: FALLING BACK TO SERIAL\n\n")
-#        for chunk in chunks: generic_reco_chunk(chunk)
 
     # Combine results
     masks_list, dicts_list = zip(*results)

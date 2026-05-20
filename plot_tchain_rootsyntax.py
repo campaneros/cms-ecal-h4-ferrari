@@ -1,16 +1,10 @@
-#python3
-
-#questo fa un dataset solo (anche molti file) ma una sola tchain
-
-#va chiamato da un'altro programma lasciando plot.conf costante e variando data.conf per fare tutti i dataset in batch con gli stessi plot e gli stessi tagli
-
 import ROOT
 import sys
 import pandas as pd
 import os
 import argparse
 
-parser = argparse.ArgumentParser(description='Online monitor and reconstruction for crilin July')
+parser = argparse.ArgumentParser(description="plot with ROOT syntax")
 
 parser.add_argument('plotconffile', type=str, help='plotconffile')
 parser.add_argument('files_wildcard', type=str, help='fileswildcard')

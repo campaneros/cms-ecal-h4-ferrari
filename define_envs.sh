@@ -1,0 +1,11 @@
+SPILL_REP=5
+SPILL_LASER=3
+PLOT_MAIN_FOLDER="/eos/user/m/mcampana/www/h4dqm/ECAL_TB_2025"
+RECO_UNPACKED_OUTDIR="/eos/cms/store/group/dpg_ecal/comm_ecal/upgrade/testbeam/ECALTB_H4_Oct2025/"
+PROMPT_RECO_FOLDER="${RECO_UNPACKED_OUTDIR}/reco"
+RECO_FOLDER="${RECO_UNPACKED_OUTDIR}/re-reco"
+UNPACKED_FOLDER="${RECO_UNPACKED_OUTDIR}/DataTree"
+EBETE_DIR="/afs/cern.ch/user/e/ecalgit/EBeTe/"
+RAW_DIR="/eos/cms/store/group/dpg_ecal/comm_ecal/upgrade/testbeam/ECALTB_H4_Oct2025/EB/"
+
+WORKING_DIR="/afs/cern.ch/user/e/ecalgit/ECAL_TB2026_dev/"

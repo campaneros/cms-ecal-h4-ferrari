@@ -1,4 +1,5 @@
-#61200APDs14648VPTs#!/bin/bash
+#!/bin/bash
+
 
 # --- launch settings with beam|laser as input parameter ---
 if [ "$#" -lt 3 ]; then
@@ -8,8 +9,6 @@ fi
 RUN=$1
 SPILL=$(printf "%04d" $((10#$2)))
 SPILL_NO=$((10#$SPILL))
-SPILL_LASER=3
-SPILL_REP=5
 mode=$3
 
 if [ "$4" == "noplots" ]; then
@@ -40,17 +39,11 @@ echo "spill type is: " $option
 
 SPILL_TYPE="${SPILL}_${option}"
 
-#PLOT_MAIN_FOLDER="/eos/user/m/mcampana/www/h4dqm/ECAL_TB_2025"
-PLOT_MAIN_FOLDER="/eos/user/l/lfaiella/www/h4dqm/ECAL_TB_2025"
-
-WORKING_DIR="/afs/cern.ch/user/e/ecalgit/ECAL_TB2026_dev/"
 
 # --- Start global timer ---
 start_time=$(date +%s)
 
-#source /cvmfs/sft.cern.ch/lcg/views/LCG_108/x86_64-el9-gcc13-opt/setup.sh
 
-RECO_UNPACKED_OUTDIR="/eos/cms/store/group/dpg_ecal/comm_ecal/upgrade/testbeam/ECALTB_H4_Oct2025/"
 UNPACKED_FILE="${RECO_UNPACKED_OUTDIR}/DataTree/$RUN/${SPILL}.root"
 
 if [ "$nounpack" != "nounpack" ]; then
@@ -59,14 +52,10 @@ if [ "$nounpack" != "nounpack" ]; then
 
   cd ${EBETE_DIR}
 
-  # --- EBeTe compilation ---
-  echo "Building EBeTe and unpacking run $RUN spill $SPILL..."
-  #make -j
   export LD_LIBRARY_PATH="${EBETE_DIR}/build:$LD_LIBRARY_PATH"
+
   echo "Unpacking run $RUN spill $SPILL with EBeTe..."
 
-  RAW_DIR="/eos/cms/store/group/dpg_ecal/comm_ecal/upgrade/testbeam/ECALTB_H4_Oct2025/EB/"
-  #RAW_DIR="/eos/cms/store/group/dpg_ecal/comm_ecal/upgrade/testbeam/ECALTB_H4_Jul2023/EB"
   echo "./h4_raw2root ${RAW_DIR}/$RUN/$SPILL.raw ${UNPACKED_FILE}"
   ./h4_raw2root ${RAW_DIR}/$RUN/$SPILL.raw ${UNPACKED_FILE} > ${RECO_UNPACKED_OUTDIR}/DataTree/$RUN/${SPILL}.txt
 
@@ -92,16 +81,13 @@ else
   plots_options=""
 fi
 
-# --- Reco and plotting ---
 echo "Starting reconstruction..."
-#source ${HOME}/ferrari_on_cvmfs_108/bin/activate
 
 python3 reco.py -i ${UNPACKED_FILE} \
     -r "$RUN" \
     -s "$SPILL" \
     -ro ${RECO_UNPACKED_OUTDIR}/reco/run_$RUN/ \
     -j detectors_conf.json \
-    -hd "source ${WORKING_DIR}/hadd.sh $RUN plotlists/plot_list_$option.csv $SPILL $PLOT_MAIN_FOLDER $option &" \
     -opt $option \
     --do-plots $doplots $plots_options
 

@@ -4,6 +4,7 @@ import numpy as np
 import traceback
 import shutil
 
+#not implemented!!
 def plot_chunk(args):
     """
     Wrapper to handle chunking for multiprocessing.
@@ -12,54 +13,32 @@ def plot_chunk(args):
 
     plotconf_df.apply(lambda row: plot(row, arrays, plot_output_folder, **kwargs), axis=1)
 
-def replace_index_axis1(match):
-    var = match.group(1)
-    idx = match.group(2)
-    return f"uproot_dict['{var}'][:,{idx}]"
 
-def replace_index_noch(match):
-    var = match.group(1)
-    return f"uproot_dict['{var}']"
 
 def eval_formula(formula, data_dict):
-    if "((" in formula:
-      pattern = re.compile(r"\(\(\s*(\w+)\s*\)\)")
-      numpy_expr = pattern.sub(replace_index_noch, formula)
-      print(numpy_expr, file=sys.stderr, flush=True)
+    """
+    Evaluate a formula with ${var} syntax and optional @ for broadcasting axes.
 
-      result = eval(numpy_expr, {"uproot_dict": data_dict, "np": np})
+    - ${var} -> uproot_dict["var"]
+    - ${var}@ -> uproot_dict["var"][:, np.newaxis]
+    - ${var}@@ -> uproot_dict["var"][:, np.newaxis][:, np.newaxis] etc.
+    """
 
-      return result
+    def replace_var(m):
+        varname = m.group(1)
+        at_symbols = m.group(2) or ""
+        arr = f'uproot_dict["{varname}"]'
+        if at_symbols:
+            arr += ''.join(['[:, np.newaxis]' for _ in at_symbols])
+        return arr
 
+    # Match ${var} optionally followed by one or more @ symbols
+    pattern = re.compile(r'\$\{\s*(\w+)\s*\}(\@*)')
+    expr = pattern.sub(replace_var, formula)
 
-    if "[" not in formula: return data_dict[formula]
-
-    #if "[" not in formula: eval(formula, {"uproot_dict": data_dict, "np": np})
-
-    pattern = re.compile(r"(\w+)\[(\d+)\]")
-    numpy_expr = pattern.sub(replace_index_axis1, formula)
-    print(numpy_expr, file=sys.stderr, flush=True)
-    result = eval(numpy_expr, {"uproot_dict": data_dict, "np": np})
-
-    return result
-
-
-def convert_root_cut_to_numpy_expr(cut_str, available_vars):
-    # Replace && with & and || with |
-    cut_str = cut_str.replace("&&", "&").replace("||", "|").replace("[", "[:, ")
-
-    # Replace ROOT var names with uproot_dict["var"]
-    pattern = re.compile(r'\b(' + '|'.join(re.escape(var) for var in available_vars) + r')\b')
-    expr = pattern.sub(r'uproot_dict["\1"]', cut_str)
-
-    comp_ops = ['>=', '<=', '==', '!=', '>', '<']
-    for op in comp_ops:
-        # Wrap expressions with comparison operators, avoiding double wrapping
-        pattern = rf'(?<!\()([^\s&|()]+(?:\s*\[[^\]]+\])?\s*{re.escape(op)}\s*[^\s&|()]+)(?!\))'
-        # pattern = rf'(?<!\()([^\s&|()]+(?:\s*\[[^\]]+\])?\s*{re.escape(op)}\s*[+-]?\d*\.?\d*(?:e[+-]?\d+)?|[^\s&|()]+)(?!\))'
-        expr = re.sub(pattern, r'(\1)', expr)
-
-    return expr
+    # Safe eval environment
+    safe_globals = {"uproot_dict": data_dict, "np": np, "__builtins__": {}}
+    return eval(expr, safe_globals)
 
 
 def draw_TT_grid(hist, c):
@@ -94,33 +73,6 @@ def draw_TT_grid(hist, c):
       lines.append(line)
     return lines  
 
-# def convert_root_cut_to_numpy_expr(cut_str, available_vars):
-#     # 1. ROOT → NumPy logical operators
-#     cut_str = cut_str.replace("&&", "&").replace("||", "|")
-
-#     # 2. Rimuovi spazi inutili
-#     cut_str = cut_str.strip()
-
-#     # 3. Proteggi le variabili per evitare risostituzioni
-#     for var in sorted(available_vars, key=len, reverse=True):
-#         pattern = r'\b' + re.escape(var) + r'\b'
-#         cut_str = re.sub(pattern, f'@@VAR_{var}@@', cut_str)
-
-#     # 4. Ripristina come uproot_dict["var"]
-#     for var in available_vars:
-#         cut_str = cut_str.replace(f'@@VAR_{var}@@', f'uproot_dict["{var}"]')
-
-#     # 5. Rendi espliciti i numeri negativi: inserisci spazio prima del segno meno se serve
-#     cut_str = re.sub(r'(?<==)-', ' -', cut_str)
-
-#     # 6. Aggiungi parentesi ai confronti (>=, <=, ==, !=, >, <)
-#     comp_ops = ['>=', '<=', '==', '!=', '>', '<']
-#     for op in comp_ops:
-#         # match espressioni come uproot_dict["x"]== -1 oppure >=3
-#         pattern = rf'(?<!\()(\s*uproot_dict\["[^"]+"\]\s*{re.escape(op)}\s*-?\d*\.?\d*(?:e[+-]?\d+)?)(?!\))'
-#         cut_str = re.sub(pattern, r'(\1)', cut_str)
-
-#     return cut_str
 
 
 def plot(row, uproot_dict, outputfolder, f=None, just_draw=False):
@@ -147,6 +99,7 @@ def plot(row, uproot_dict, outputfolder, f=None, just_draw=False):
 
     os.makedirs(f"{outputfolder}/{row.folder}/", exist_ok=True)
 
+    #legacy... very slow!
     #f = ROOT.TFile(f"{outputfolder}/{row.folder}/{name}.root", ("update" if just_draw else "recreate"))
     #f.cd()
 
@@ -154,46 +107,6 @@ def plot(row, uproot_dict, outputfolder, f=None, just_draw=False):
 
     c = ROOT.TCanvas(f"{name}_canvas")
     c.cd()
-
-    if name == "peak_vs_charge":
-      x = eval_formula(row.x,uproot_dict)/0.271    #/0.271 dato che le cariche sono moltiplicate per questo fattore
-      y = eval_formula(row.y,uproot_dict)          #se charge_to_peak_conversion = true
-
-      graph=ROOT.TGraph(len(x),x.astype(np.float64),y.astype(np.float64))
-      graph.SetTitle("Peak vs Charge;Charge;Peak value")
-      graph.SetMarkerStyle(24)
-      graph.SetMarkerSize(0.8)
-      graph.SetMarkerColor(ROOT.kBlack)
-      ROOT.gStyle.SetOptTitle(1)
-      ROOT.gStyle.SetTitleAlign(23)
-      ROOT.gStyle.SetTitleX(0.5)
-      graph.Draw("AP")
-      graph.SetLineStyle(0)
-
-      fit = ROOT.TF1("fit", "pol1")
-      graph.Fit(fit)
-      ROOT.gStyle.SetOptFit(0)
-
-      slope = fit.GetParameter(1)
-      chi2  = fit.GetChisquare()
-      df = fit.GetNDF()
-
-      pave = ROOT.TPaveText(0.15, 0.7, 0.35, 0.88, "NDC")
-      pave.SetFillColor(0)
-      pave.SetTextFont(42)
-      pave.SetTextSize(0.03)
-      pave.SetBorderSize(1)
-
-      pave.AddText(f"Slope = {slope:.3f}")
-#      pave.AddText(f"#chi^2 = {chi2:.2f}")
-      pave.Draw()
-      c.Print(f"{outputfolder}/{row.folder}/{name}_graph.pdf")
-      graph.Write()
-
-      json_dict["detectors"]["ecal"]["reco_conf"]["charge_to_peak_slope"] = slope
-      with open(args.output_json, "w") as f:
-          json.dump(json_dict, f, indent=4)
-
 
     if just_draw:
       for key in f.GetListOfKeys():
@@ -211,9 +124,7 @@ def plot(row, uproot_dict, outputfolder, f=None, just_draw=False):
         first_key = next(iter(uproot_dict.keys()))
         mask = np.ones((uproot_dict[first_key].shape[0],), dtype=bool)
       else:
-        expr = convert_root_cut_to_numpy_expr(str(row.cuts), uproot_dict.keys())
-        print(expr)
-        mask = eval(expr)
+        mask = eval_formula(row.cuts, uproot_dict)
 
       x = eval_formula(row.x, uproot_dict)[mask]
       nevents = x.shape[0]

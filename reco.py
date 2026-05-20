@@ -60,7 +60,7 @@ def main(arguments):
         print(f"reco {detector} ongoing")
         dd = detectors_dict[detector]
 
-        reco_dict[detector], geo_dict, chid_dict = {}, None, None
+        reco_dict[detector], geo_dict, chid_dict, gain_list = {}, None, None, None
         if dd["ch_map"] == None: active_ch_list = slice(None)
         elif isinstance(dd["ch_map"], str):
           map_df = pd.read_csv(dd["ch_map"])
@@ -69,26 +69,23 @@ def main(arguments):
           chid_dict = {var: map_df[var].to_numpy()[active_row_list] for var in dd["chid_vars_list"]}
           if dd["geo_needed"]:
             geo_dict = {coord: map_df[coord].to_numpy()[active_row_list] for coord in ["ieta", "iphi"]}
+          if dd["apply_gain_ratios"]:
+            gain_list = map_df["high_over_lo_gain_ratio"].to_numpy()[active_row_list]
         elif isinstance(dd["ch_map"], list):
           active_ch_list = dd["ch_map"]
 
         if dd["generic_reco"]:
             waves = tree[dd["waves_branch"]].array(library="np")[:, active_ch_list, :].astype(np.uint16)
-            if dd["decode"]: waves, is_valid, gain_is_1 = reco_functions.decode_ecal_waves(waves)
+            if dd["decode"]: waves, is_valid, gain_is_high = reco_functions.decode_ecal_waves(waves, gain_list)
             if dd["remove_last_n_samples"] != 0: waves = waves[:, :, : -dd["remove_last_n_samples"]]
             if dd["to_be_inverted"]: waves = 4096 - waves #must be inverted if the signal are with negative rising slope
-            #not parallel anymore
+
             reco_conf = copy.deepcopy(json_dict["default_reco_conf"])
             reco_conf.update(dd["reco_conf"])
             reco_dict[detector]["mask"], reco_dict[detector]["arrays"] = reco_functions.generic_reco(
-              waves, detector, id=chid_dict, geo_dict=geo_dict, **reco_conf #n_cpus=args.n_cpus
+              waves, detector, id=chid_dict, geo_dict=geo_dict, **reco_conf #n_cpus=args.n_cpus: not implemented
             )
 
-            conversion_factor = reco_conf.get("charge_to_peak_slope", 1.0)
-            if conversion_factor is not None:
-                do_conv = json_dict["detectors"]["ecal"]["reco_conf"].get("charge_to_peak_conversion", False)
-
-            print(f"{detector}, selected: {reco_dict[detector]['mask'].sum()} events")
         elif detector == "hodo":
             reco_dict[detector]["mask"], reco_dict[detector]["arrays"] = reco_functions.hodo_reco(tree, detector)
             print(f"{detector}, selected: {reco_dict[detector]['mask'].sum()} events")
@@ -133,26 +130,27 @@ def main(arguments):
       f = ROOT.TFile(f"{args.plot_output_folder}/histos.root", "recreate")
 
       plotconf_df.apply(lambda row: plot_functions.plot(row, arrays, f"{args.plot_output_folder}/", f), axis=1)
-      #f.Close()
+
+      #not implemented
+      '''
       #chunk_size = (len(plotconf_df) + args.n_cpus - 1) // args.n_cpus  # ceil division
       #chunks = [(plotconf_df.iloc[i*chunk_size : (i+1)*chunk_size], arrays, args.plot_output_folder, {"f": f}) for i in range(args.n_cpus)]
 
-  #    try:
-  #        ctx = mp.get_context("spawn")
-  #        with ctx.Pool(args.n_cpus) as pool:
-  #            pool.map(plot_functions.plot_chunk, chunks)
-  #    except BrokenPipeError:
-  #        print("\n\n\nPLOTS IN PARALLEL in broken pipe: FALLING BACK TO SERIAL\n\n")
-  #        for chunk in chunks: plot_functions.plot_chunk(chunk)
-  #    except Exception:
-  #        print("\n\n\nPLOTS IN PARALLEL in broken pipe: FALLING BACK TO SERIAL\n\n")
-  #        for chunk in chunks: plot_functions.plot_chunk(chunk)
-  #
+      try:
+          ctx = mp.get_context("spawn")
+          with ctx.Pool(args.n_cpus) as pool:
+              pool.map(plot_functions.plot_chunk, chunks)
+      except BrokenPipeError:
+          print("\n\n\nPLOTS IN PARALLEL in broken pipe: FALLING BACK TO SERIAL\n\n")
+          for chunk in chunks: plot_functions.plot_chunk(chunk)
+      except Exception:
+          print("\n\n\nPLOTS IN PARALLEL in broken pipe: FALLING BACK TO SERIAL\n\n")
+          for chunk in chunks: plot_functions.plot_chunk(chunk)
+
       #for chunk in chunks: plot_functions.plot_chunk(chunk)
+      '''
       f.Close()
       print(f"plotting took {-time_plot + time.time():.1f} s")
-
-      #os.system(args.hadd_cmd) #goes in parallel
 
     # writing
     time_write = time.time()

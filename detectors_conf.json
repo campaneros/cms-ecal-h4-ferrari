@@ -36,20 +36,24 @@
                 "do_5x5": false,
                 "fixed_5x5": null,
                 "do_timing": false,
-                "save_some_waves": false,
                 "sampling_rate": null,
                 "rise_samples_pre_peak": null,
                 "rise_samples_post_peak": null,
-                "timing_method": "cf",
-                "cf": 0.1,
+                "timing_method": null,
+                "sampling_rate": null,
+                "spline_file": null,
+                "cf": null,
                 "timing_thr": null,
                 "interpolation_factor": null,
-                "baseline_subtract": false,
-                "threshold_not_using_peak": null,
+                "baseline_subtract": true,
+                "raw_threshold_before_peak_finding": null,
                 "save_only_5x5_info": false,
-                "save_mean_rms_all_samples": true,
+                "save_mean_rms_all_samples": false,
                 "do_tau": false,
-                "tau_descent_samples": null
+                "tau_descent_samples": null,
+                "charge_to_peak_conversion":false,
+                "charge_to_peak_slope": null,
+                "w0_centroid": null,
     },
     "detectors": {
         "ecal": {
@@ -62,6 +66,7 @@
             "generic_reco": true,
             "remove_last_n_samples": 0,
             "geo_needed": true,
+            "apply_gain_ratios": true,
             "reco_conf": {
                 "signal_samples_pre_peak": 5,
                 "signal_samples_post_peak": 10,
@@ -70,14 +75,15 @@
                 "do_tau": true,
                 "tau_descent_samples": 3,
                 "do_5x5": true,
-                "do_timing": false,
-                "save_some_waves": true,
+                "do_timing": true,
+                "timing_method": "lsfit",
+                "spline_file": "templates/template.txt",
                 "sampling_rate": 0.16,
-                "interpolation_factor": 500,
                 "save_mean_rms_all_samples": true,
                 "save_only_5x5_info": false,
                 "charge_to_peak_slope": 0.271,
-                "charge_to_peak_conversion": false
+                "charge_to_peak_conversion": true,
+                "w0_centroid": 3.8
             }
         },
 
@@ -91,6 +97,7 @@
             "generic_reco": true,
             "geo_needed": true,
             "remove_last_n_samples": 0,
+            "apply_gain_ratios": false,
             "reco_conf": {
                 "signal_samples_pre_peak": 5,
                 "signal_samples_post_peak": 10,
@@ -98,10 +105,7 @@
                 "seed_charge_threshold": 50,
                 "do_5x5": false,
                 "do_timing": false,
-                "save_some_waves": true,
                 "sampling_rate": 0.08,
-                "charge_to_peak_slope": 0.271,
-                "charge_to_peak_conversion":false
             }
     	},
 
@@ -112,7 +116,6 @@
             "to_be_inverted": true,
             "waves_branch": "dgtz_sample",
             "generic_reco": true,
-            "geo_needed": false,
             "remove_last_n_samples": 50,
             "reco_conf": {
                 "signal_samples_pre_peak": 12,
@@ -121,14 +124,11 @@
                 "seed_charge_threshold": 0,
                 "do_5x5": false,
                 "do_timing": true,
-                "save_some_waves": true,
                 "sampling_rate": 5,
                 "rise_samples_pre_peak": 10,
                 "rise_samples_post_peak": 2,
                 "cf": 0.2,
                 "interpolation_factor": 40,
-                "charge_to_peak_slope": 0.271,
-                "charge_to_peak_conversion": false
             }
         },
         "digi_bcp_clock_reading": {
@@ -138,7 +138,6 @@
             "to_be_inverted": false,
             "waves_branch": "dgtz_sample",
             "generic_reco": true,
-            "geo_needed": false,
             "remove_last_n_samples": 993,
             "reco_conf": {
                 "signal_samples_pre_peak": 15,
@@ -147,7 +146,6 @@
                 "seed_charge_threshold": 0,
                 "do_5x5": false,
                 "do_timing": true,
-                "save_some_waves": true,
                 "sampling_rate": 5,
                 "rise_samples_pre_peak": 15,
                 "rise_samples_post_peak": 15,
@@ -155,8 +153,6 @@
                 "timing_thr": 1100,
                 "interpolation_factor": 40,
                 "baseline_subtract": false,
-                "charge_to_peak_slope": 0.271,
-                "charge_to_peak_conversion": false
             }
         },
 
@@ -167,7 +163,6 @@
             "to_be_inverted": true,
             "waves_branch": "dgtz_sample",
             "generic_reco": true,
-            "geo_needed": false,
             "remove_last_n_samples": 50,
             "reco_conf": {
                 "signal_samples_pre_peak": 20,
@@ -176,28 +171,20 @@
                 "seed_charge_threshold": 0,
                 "do_5x5": false,
                 "do_timing": true,
-                "save_some_waves": true,
                 "sampling_rate": 5,
                 "rise_samples_pre_peak": 20,
                 "rise_samples_post_peak": 5,
                 "timing_method": "fixed_thr",
                 "timing_thr": 1500,
                 "interpolation_factor": 40,
-                "baseline_subtract": true,
-                "threshold_not_using_peak": 1500,
-                "charge_to_peak_slope": 0.271,
-                "charge_to_peak_conversion": false
+                "raw_threshold_before_peak_finding": 1500,
             }
        	},
 
         "hodo": {
             "_comment": "null ch_map means all channels active, list is active chs, string is map filename",
             "ch_map": null,
-            "decode": false,
-            "to_be_inverted": false,
-            "waves_branch": null,
             "generic_reco": false,
-            "geo_needed": false,
             "reco_conf": {
                 "signal_samples_pre_peak": 0,
                 "signal_samples_post_peak": 0,
@@ -205,9 +192,6 @@
                 "seed_charge_threshold": 0,
                 "do_5x5": false,
                 "do_timing": false,
-                "save_some_waves": true,
-                "charge_to_peak_slope": 0.271,
-                "charge_to_peak_conversion": false
             }
         },
 
@@ -226,9 +210,6 @@
                 "seed_charge_threshold": 0,
                 "do_5x5": false,
                 "do_timing": false,
-                "save_some_waves": true,
-                "charge_to_peak_slope": 0.271,
-                "charge_to_peak_conversion": false
             }
         }
     }
