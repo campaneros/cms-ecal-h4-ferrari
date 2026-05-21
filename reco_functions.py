@@ -3,6 +3,7 @@ import numpy as np
 import awkward as ak
 from scipy import ndimage
 import multiprocessing as mp
+from multifit import run_fit
 
 def decode_ecal_waves(waves, gain_list):
     bit13_mask = 1 << 13 #validity bit
@@ -10,8 +11,11 @@ def decode_ecal_waves(waves, gain_list):
     amp_mask   = 0x0FFF #amplitude mask
     is_valid = (waves & bit13_mask) != 0
     gain_is_high = (waves & bit12_mask) != 0
-    amplitudes = waves & amp_mask
-    amplitudes[gain_is_high] *= gain_list[gain_is_high]
+    amplitudes = (waves & amp_mask).astype(np.float32)
+
+    gains = gain_list[None, :, None]
+
+    amplitudes *= np.where(gain_is_high, gains, 1)
     #amplitudes[~is_valid] = 0
     return amplitudes, is_valid, gain_is_high
 
@@ -87,9 +91,8 @@ def generic_reco(waves, detector_name, **kwargs):
   t0 = time.time()
 
   max_idx, baselines, baselines_std, baseline_integral, signal_window = split(waves, pre=signal_samples_pre_peak, post=signal_samples_post_peak, threshold=raw_threshold_before_peak_finding)
-  # print(baseline_integral.shape)
 
-  print(f"baselines took: {time.time() - t0}")
+  print(f"baselines evaluation took: {time.time() - t0}")
   t0 = time.time()
 
   values_mean = np.mean(waves, axis=2) # mean of all values
@@ -110,17 +113,15 @@ def generic_reco(waves, detector_name, **kwargs):
   charge[mask_under_thr] = 0
   if charge_to_peak_conversion:
      charge = charge * charge_to_peak_slope
-  tWave = np.repeat(np.arange(0, waves.shape[2])[np.newaxis, :], charge.shape[1], axis=0)/sampling_rate
-  tWave = np.repeat(tWave[np.newaxis, :], charge.shape[0], axis=0)
+
   ich = np.repeat(np.arange(0, waves.shape[1])[np.newaxis, :], charge.shape[0], axis=0)
 
   return_dict = {}
   mask_selected_events = np.ones((charge.shape[0],), dtype=bool)
   det = detector_name
 
-  print(f"all chs things took: {time.time() - t0}")
+  print(f"baseline subtraction, charge integration things took: {time.time() - t0}")
   t0 = time.time()
-
 
   if geo_dict is not None:
     ieta, iphi = geo_dict["ieta"], geo_dict["iphi"]
@@ -142,7 +143,7 @@ def generic_reco(waves, detector_name, **kwargs):
 
       mask_low_charge_seed = charge_seed > seed_charge_threshold
 
-    # amplitude_map of the 5x5 matrix
+      # amplitude_map of the 5x5 matrix
       charge_fraction_5x5 = np.zeros(charge.shape)
       charge_fraction_5x5[:, mask_5x5] = charge[:, mask_5x5] / charge_sum_5x5[:, np.newaxis]
 
@@ -159,11 +160,8 @@ def generic_reco(waves, detector_name, **kwargs):
       t0 = time.time()
 
 
-      iphi_within_5x5 = np.zeros(iphi.shape)
-      ieta_within_5x5 = np.zeros(ieta.shape)
-
-      iphi_within_5x5[mask_5x5] = iphi[mask_5x5] - iphi[seed_ch]
-      ieta_within_5x5[mask_5x5] = ieta[mask_5x5] - ieta[seed_ch]
+      iphi_within_5x5 = iphi - iphi[seed_ch]
+      ieta_within_5x5 = ieta - ieta[seed_ch]
 
       ieta_within_5x5 = np.repeat(ieta_within_5x5[np.newaxis, :], charge.shape[0], axis=0)
       iphi_within_5x5 = np.repeat(iphi_within_5x5[np.newaxis, :], charge.shape[0], axis=0)
@@ -186,7 +184,7 @@ def generic_reco(waves, detector_name, **kwargs):
       t0 = time.time()
 
       return_dict.update({
-        f"{det}_charge_sum_5x5": charge_sum_5x5, f"{det}_charge_seed": charge_seed, f"{det}_seed_over_5x5": charge_fraction_5x5[:, seed_ch_app],
+        f"{det}_charge_sum_5x5": charge_sum_5x5, f"{det}_charge_seed": charge_seed, f"{det}_peak_seed": peak_seed, f"{det}_seed_over_5x5": charge_fraction_5x5[:, seed_ch_app],
         f"{det}_highest_charge_over_5x5": highest_charge/charge_sum_5x5,
         f"{det}_iphi_within_5x5": iphi_within_5x5, f"{det}_ieta_within_5x5": ieta_within_5x5,
         f"{det}_charge_divided_5x5": charge_fraction_5x5, f"{det}_seed_ch": seed_ch,
@@ -207,7 +205,7 @@ def generic_reco(waves, detector_name, **kwargs):
       log_w = np.log(np.clip(descent, 1, None))
       log_slopes = np.diff(log_w, axis=2) / descent.shape[2]
       tau = np.zeros(charge.shape)
-      tau[:, tau_mask] = -1.0 / (np.median(log_slopes, axis=2) * sampling_rate)
+      tau[:, tau_mask] = -1.0 / (1e-12 + np.median(log_slopes, axis=2) * sampling_rate)
       return_dict.update({f"{det}_tau": tau})
 
   if do_timing:
@@ -215,12 +213,13 @@ def generic_reco(waves, detector_name, **kwargs):
     else: timing_mask = np.full((signal_window.shape[1],), True)
 
     timing_nch = int(np.sum(timing_mask))
-    print(f"timing nch: {timing_nch}")
-    rise = np.zeros((signal_window.shape[0], timing_nch, rise_samples_pre_peak+rise_samples_post_peak))
-    rise = signal_window[:, timing_mask, signal_samples_pre_peak - rise_samples_pre_peak:signal_samples_pre_peak + rise_samples_post_peak]
-    rise_interp = ndimage.zoom(rise, [1, 1, interpolation_factor])
 
     if timing_method == "cf" or timing_method == "fixed_thr":
+      rise = np.zeros((signal_window.shape[0], timing_nch, rise_samples_pre_peak+rise_samples_post_peak))
+      rise = signal_window[:, timing_mask, signal_samples_pre_peak - rise_samples_pre_peak:signal_samples_pre_peak + rise_samples_post_peak]
+      rise_interp = ndimage.zoom(rise, [1, 1, interpolation_factor])
+
+
       if timing_method == "cf":
         peak_interp = rise_interp.max(axis=2) #shape: (Events, Channel) - on y axis
         thresholds = peak_interp*cf #values_max*cf
@@ -229,16 +228,16 @@ def generic_reco(waves, detector_name, **kwargs):
         thresholds = np.ones((rise.shape[0], rise.shape[1]))*timing_thr
 
       pseudo_t = np.zeros((signal_window.shape[0], signal_window.shape[1]))
-      print(f"thresholds, rise_interp shapes: {thresholds.shape}, {rise_interp.shape}")
+
       pseudo_t[:, timing_mask] = np.argmax(rise_interp > np.repeat((thresholds)[:, :, np.newaxis], rise_interp.shape[2], axis=2), axis=2).astype(float)
       pseudo_t[:, timing_mask] += np.random.uniform(low=-0.5, high=0.5, size=(pseudo_t.shape[0], timing_nch))
       pseudo_t[:, timing_mask] /= float(sampling_rate*interpolation_factor)
       pseudo_t[:, timing_mask] += ((max_idx[:, timing_mask] - rise_samples_pre_peak) / sampling_rate)
       return_dict.update({f"{det}_{timing_method}_time": pseudo_t})
 
-    if timing_method == "lsfit":
+    elif timing_method == "lsfit":
 
-      fit_amp, fit_time = run_fit(signal_window, mask_under_thr, spline_file, sampling_rate)
+      fit_amp, fit_time = run_fit(signal_window, mask_under_thr, max_idx, spline_file, sampling_rate, signal_samples_pre_peak)
       return_dict.update({f"{det}_{timing_method}_time": fit_time, f"{det}_{timing_method}_amp": fit_amp})
 
     else:
@@ -284,7 +283,12 @@ def hodo_reco(tree, detector_name):
     mask = (clus > 0)
     pos_first_cluster = ak.to_numpy(ak.where(mask, ak.firsts(pos), -999))
     mask_single_cluster = ak.to_numpy(clus == 1)
-    average_all_clusters = ak.to_numpy(ak.where(mask, ak.sum(pos, axis=1) / clus, -999.0 ))
+
+    safe_clus = ak.where(clus > 0, clus, 1)
+    average_all_clusters = ak.to_numpy(
+        ak.where(clus > 0, ak.sum(pos, axis=1) / safe_clus, -999.0)
+    )
+
     reco_dict.update({
       f"{det}_{coord}_cl0_pos": pos_first_cluster,
       f"{det}_{coord}_single_cl_flag": mask_single_cluster,

@@ -70,7 +70,7 @@ def main(arguments):
           if dd["geo_needed"]:
             geo_dict = {coord: map_df[coord].to_numpy()[active_row_list] for coord in ["ieta", "iphi"]}
           if dd["apply_gain_ratios"]:
-            gain_list = map_df["high_over_lo_gain_ratio"].to_numpy()[active_row_list]
+            gain_list = map_df["high_over_low_gain_ratio"].to_numpy()[active_row_list]
         elif isinstance(dd["ch_map"], list):
           active_ch_list = dd["ch_map"]
 
@@ -108,6 +108,7 @@ def main(arguments):
     mask_global, arrays = np.logical_and.reduce([reco_dict[detector]["mask"] for detector in reco_dict]), {}
     for detector in reco_dict: arrays.update(reco_dict[detector]["arrays"])
     for branch in arrays: arrays[branch] = arrays[branch][mask_global, ...]
+    print([br for br in arrays])
     print(f"merging took {-time_merge + time.time():.1f} s")
 
     if args.do_plots:
@@ -117,15 +118,9 @@ def main(arguments):
       plotconf_df = plotconf_df.fillna("")
 
       ROOT.gROOT.LoadMacro("root_logon.C")
-      # os.system(f"mkdir -p {args.plot_output_folder}")
+      os.system(f"mkdir -p {args.plot_output_folder}")
       if not os.path.exists(f"{args.plot_output_folder}/index.php"):
-          os.system(f"cp {args.plot_output_folder}/../../index.php {args.plot_output_folder}/index.php")
-      if not os.path.exists(f"{args.plot_output_folder}/jsroot_viewer.php"):
-          os.system(f"cp {args.plot_output_folder}/../../jsroot_viewer.php {args.plot_output_folder}/jsroot_viewer.php")
-      if not os.path.exists(f"{args.plot_output_folder}/../index.php"):
-          os.system(f"cp {args.plot_output_folder}/../../index.php {args.plot_output_folder}/../index.php")
-      if not os.path.exists(f"{args.plot_output_folder}/../jsroot_viewer.php"):
-          os.system(f"cp {args.plot_output_folder}/../../jsroot_viewer.php {args.plot_output_folder}/../jsroot_viewer.php")
+          os.system(f"cp index.php {args.plot_output_folder}/index.php")
 
       f = ROOT.TFile(f"{args.plot_output_folder}/histos.root", "recreate")
 

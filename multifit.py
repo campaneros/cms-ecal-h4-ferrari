@@ -3,6 +3,35 @@ import ROOT
 import sys
 
 
+def load_segments_txt(filename):
+    """
+    Format expected:
+
+    xc x0 x1 a b c d
+    """
+
+    segs = []
+
+    with open(filename, "r") as f:
+        for line in f:
+            if line.strip() == "" or line.startswith("#"):
+                continue
+
+            vals = line.split()
+
+            segs.append({
+                "xc": float(vals[0]),
+                "x0": float(vals[1]),
+                "x1": float(vals[2]),
+                "a":  float(vals[3]),
+                "b":  float(vals[4]),
+                "c":  float(vals[5]),
+                "d":  float(vals[6]),
+            })
+
+    return segs
+
+
 class PiecewiseCubicSplineNP:
 
     def __init__(self, segments, Ts):
@@ -20,8 +49,8 @@ class PiecewiseCubicSplineNP:
 
         x = np.asarray(x)[None, ...]  # (1, E, C, N)
 
-        x0 = self.x0[:, None, None, None]
-        x1 = self.x1[:, None, None, None]
+        x0 = self.x0[:, None, None]
+        x1 = self.x1[:, None, None]
 
         inside = (x >= x0) & (x <= x1)
 
@@ -29,7 +58,6 @@ class PiecewiseCubicSplineNP:
 
         xc = self.xc[idx]
         dx = x[0] - xc
-        #print("x", x, "dx", dx)
         mask = np.abs(dx) <= (self.Ts / 2.0)
 
         return idx, dx, mask
@@ -86,12 +114,12 @@ def fit_pulse_iterative(waveforms, pulse, t, t_data_peak, t_template_peak, n_ite
         # -------------------------
         P  = pulse.eval(t_shift)        # (EC, N)
         dP = pulse.derivative(t_shift) # (EC, N)
-
         # -------------------------
         # projections (sum over samples)
         # -------------------------
         Ap = np.sum(waveforms * P, axis=1)   # (EC)
         Ad = np.sum(waveforms * dP, axis=1)
+
 
         PP   = np.sum(P * P, axis=1)
         PdP  = np.sum(P * dP, axis=1)
@@ -116,14 +144,16 @@ def fit_pulse_iterative(waveforms, pulse, t, t_data_peak, t_template_peak, n_ite
 
 
 
-def run_fit(signal_window, mask_under_thr, spline_file, sampling_rate):
+def run_fit(signal_window, mask_under_thr, max_idx, spline_file, sampling_rate, signal_samples_pre_peak):
     Ts = 1/sampling_rate
 
     valid = ~mask_under_thr
 
-    idx_valid = cp.where(valid)
+    idx_valid = np.where(valid)
 
     signal_window_valid = signal_window[idx_valid]
+
+    max_idx_valid = max_idx[idx_valid]
 
     segs = load_segments_txt(spline_file)
     pulse = PiecewiseCubicSplineNP(segs, Ts)
@@ -142,7 +172,7 @@ def run_fit(signal_window, mask_under_thr, spline_file, sampling_rate):
         t_pulse_peak     # model peak (scalar)
     )
 
-    fit_time_valid = dt + np.ones(dt.shape)*signal_samples_pre_peak*Ts + max_idx*Ts
+    fit_time_valid = dt_valid + np.ones(dt_valid.shape)*signal_samples_pre_peak*Ts + max_idx_valid*Ts
 
     fit_t = np.zeros(mask_under_thr.shape, dtype=np.float32)
 

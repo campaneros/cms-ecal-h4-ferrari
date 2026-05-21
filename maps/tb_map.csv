@@ -1,4 +1,4 @@
-branch_ch,n_bcp,tt,ch_in_tt,module,type,iphi,ieta,hi_over_low_gain_ratio
+branch_ch,n_bcp,tt,ch_in_tt,module,type,iphi,ieta,high_over_low_gain_ratio
 0,0,0,1,1,ecal,1,16,10
 1,0,0,2,1,ecal,2,16,10
 2,0,0,3,1,ecal,3,16,10
