@@ -78,7 +78,7 @@ def generic_reco(waves, detector_name, **kwargs):
       print(f"seed/5x5/fractions took: {time.time() - t0}")
       t0 = time.time()
 
-      w_log = np.maximum(0.0,w0_centroid + np.log(np.clip(charge / charge_sum_5x5[:, np.newaxis], 1e-8, None)))
+      w_log = np.maximum(0.0,w0_centroid + np.log(np.clip(charge_fraction_5x5, 1e-8, None)))
       w_log /= (np.sum(w_log, axis=1, keepdims=True))
 
       ieta_centroid = w_log[:, mask_5x5] @ ieta[mask_5x5]
