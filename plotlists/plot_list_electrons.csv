@@ -30,7 +30,7 @@ charge_pos8_right_bottom, ,ecal_single_charges,${ecal_charge},0,0,(${ecal_ieta_w
 #
 amplitude_map_5x5, ,main,${ecal_ieta_within_5x5},${ecal_iphi_within_5x5},${ecal_charge_divided_5x5},${ecal_charge_sum_5x5} > 0,0,5,-2.5,2.5,5,-2.5,2.5,1000,eta,phi,charge_{ch}/charge_{5x5},1,1,
 #
-mcp_delta_t, ,main,${mcp_cf_time}[1]-${mcp_cf_time}[0],0,0,(${mcp_charge}[1]>0) & (${mcp_charge}[0]>0),kBlue,8000,-40,40,0,0,0,0,MCP C.F. T_{2}-T_{1} [ns],ns, , , ,
+mcp_delta_t, ,main,"${mcp_cf_time}[:, 1]-${mcp_cf_time}[:, 0]",0,0,"(${mcp_charge}[:, 1]>0) & (${mcp_charge}[:, 0]>0)",kBlue,8000,-40,40,0,0,0,0,MCP C.F. T_{2}-T_{1} [ns],ns, , , ,
 #
 hodo_corr_x_single_cl, ,hodo,${hodo_x1_cl0_pos},${hodo_x2_cl0_pos},0,(${hodo_x2_single_cl_flag}) & (${hodo_x1_single_cl_flag}),0,30,-15,15,30,-15,15,0,X_{1} [mm],X_{2} [mm],0,0,0,
 hodo_corr_x_avg, ,hodo,${hodo_x1_avg_pos},${hodo_x2_avg_pos},0,(${hodo_x2_avg_pos}!=-999) & (${hodo_x1_avg_pos}!=-999),0,30,-15,15,30,-15,15,0,X_{1} [mm],X_{2} [mm],0,0,0,

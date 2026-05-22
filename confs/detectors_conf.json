@@ -5,6 +5,7 @@
                 "plot_list": "plotlists/plot_list_electrons.csv",
                 "tree_name": "h4",
                 "detector_list": ["ecal", "mcp", "hodo", "bcp", "digi_bcp_clock_reading"],
+                "save_time_rc": true,
                 "option": null
             },
             "pions": {
@@ -141,15 +142,15 @@
             "generic_reco": true,
             "remove_last_n_samples": 993,
             "reco_conf": {
-                "signal_samples_pre_peak": 15,
-                "signal_samples_post_peak": 15,
+                "signal_samples_pre_peak": 30,
+                "signal_samples_post_peak": 30,
                 "charge_zerosup_peak_threshold": 0,
                 "seed_charge_threshold": 0,
                 "do_5x5": false,
                 "do_timing": true,
                 "sampling_rate": 5,
-                "rise_samples_pre_peak": 15,
-                "rise_samples_post_peak": 15,
+                "rise_samples_pre_peak": 30,
+                "rise_samples_post_peak": 30,
                 "timing_method": "fixed_thr",
                 "timing_thr": 1100,
                 "interpolation_factor": 40,

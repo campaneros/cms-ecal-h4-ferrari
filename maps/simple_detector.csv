@@ -1,0 +1,5 @@
+branch_ch,n_bcp,tt,ch_in_tt,module,type,iphi,ieta,high_over_low_gain_ratio
+0,0,0,1,1,osc,1,16,10
+#1,0,0,2,1,osc,2,16,10
+#2,0,0,3,1,osc,3,16,10
+#3,0,0,4,1,osc,4,16,10

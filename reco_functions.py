@@ -12,9 +12,7 @@ def generic_reco(waves, detector_name, **kwargs):
 
   t0 = time.time()
 
-  with np.printoptions(threshold=np.inf):
-    print("waves 1st event", waves[0])
-
+  print(waves)
 
   max_idx, baselines, baselines_std, baseline_integral, signal_window_3d_indices = reco_utils.split(waves, pre=signal_samples_pre_peak, post=signal_samples_post_peak, threshold=raw_threshold_before_peak_finding)
 
@@ -35,13 +33,9 @@ def generic_reco(waves, detector_name, **kwargs):
   mask_under_thr = values_max < charge_zerosup_peak_threshold
   waves[mask_under_thr, :] = 0
 
-  print("baselines: ", baselines[~mask_under_thr, None][0])
 
   if baseline_subtract:
     waves[~mask_under_thr, :] = waves[~mask_under_thr, :] - baselines[~mask_under_thr, None]
-
-  with np.printoptions(threshold=np.inf):
-    print("waves 1st event", waves[0])
 
   signal_window = waves[*signal_window_3d_indices]
 
@@ -156,9 +150,6 @@ def generic_reco(waves, detector_name, **kwargs):
       print(rise.shape)
       rise_interp = ndimage.zoom(rise, [1, 1, interpolation_factor])
 
-      with np.printoptions(threshold=np.inf):
-        print(rise_interp[0])
-
       if timing_method == "cf":
         peak_interp = rise_interp.max(axis=2) #shape: (Events, Channel) - on y axis
         thresholds = peak_interp*cf
@@ -168,8 +159,7 @@ def generic_reco(waves, detector_name, **kwargs):
 
       pseudo_t = np.zeros((signal_window.shape[0], signal_window.shape[1]))
 
-      pseudo_t[:, timing_mask] = np.argmax(rise_interp > np.repeat((thresholds)[:, :, np.newaxis], rise_interp.shape[2], axis=2), axis=2).astype(float)
-      print(pseudo_t[0])
+      pseudo_t[:, timing_mask] = np.argmax( (np.diff(rise_interp) < 0)*rise_interp[:, :, :-1] > thresholds[:, :, None], axis=2).astype(float)
       pseudo_t[:, timing_mask] += np.random.uniform(low=-0.5, high=0.5, size=(pseudo_t.shape[0], timing_nch))
       pseudo_t[:, timing_mask] /= float(sampling_rate*interpolation_factor)
       pseudo_t[:, timing_mask] += ((max_idx[:, timing_mask] - rise_samples_pre_peak) / sampling_rate)

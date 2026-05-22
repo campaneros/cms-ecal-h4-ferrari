@@ -64,7 +64,7 @@ def main(arguments):
         reco_dict[detector], geo_dict, chid_dict, gain_list = {}, None, None, None
         if dd["ch_map"] == None: active_ch_list = slice(None)
         elif isinstance(dd["ch_map"], str):
-          map_df = pd.read_csv(dd["ch_map"])
+          map_df = pd.read_csv(dd["ch_map"], comment='#')
           active_row_list = (map_df["type"] == detector).tolist()
           active_ch_list = (map_df["branch_ch"][map_df["type"] == detector]).tolist()
           chid_dict = {var: map_df[var].to_numpy()[active_row_list] for var in dd["chid_vars_list"]}
@@ -76,8 +76,8 @@ def main(arguments):
           active_ch_list = dd["ch_map"]
 
         if dd["generic_reco"]:
-            waves = tree[dd["waves_branch"]].array(library="np")[:, active_ch_list, :].astype(np.uint16)
-            if dd["decode"]: waves, is_valid, gain_is_high = reco_utils.decode_ecal_waves(waves, gain_list)
+            waves = tree[dd["waves_branch"]].array(library="np")[:, active_ch_list, :]
+            if dd["decode"]: waves, is_valid, gain_is_high = reco_utils.decode_ecal_waves(waves.astype(np.uint16), gain_list)
             if dd["remove_last_n_samples"] != 0: waves = waves[:, :, : -dd["remove_last_n_samples"]]
             if dd["to_be_inverted"]: waves = 4096 - waves #must be inverted if the signal are with negative rising slope
 
@@ -98,10 +98,10 @@ def main(arguments):
     print(f"reco took: {-time_reco + time.time():.1f} s")
 
     # time run controller
-    time_rc = tree["time_rc"].array(library="np")
+    if mode["save_time_rc"]: time_rc = tree["time_rc"].array(library="np")
 
     # add event number
-    n_events = np.arange(reco_dict["ecal"]["mask"].shape[0])
+    n_events = np.arange(reco_dict[list(reco_dict.keys())[0]]["mask"].shape[0])
     reco_dict["events"] = {"mask": np.ones((n_events.shape[0],), dtype=bool), "arrays": {"n_event": n_events}}
 
     # merging

@@ -1,7 +1,12 @@
+import sys
+
+sys.path.append('./')
+
+sys.path.append('../')
+
 import os, json, uproot, argparse, sys, time, ROOT
-import awkward as ak
-import numpy as np
 import pandas as pd
+import numpy as np
 import plot_functions_in_memory as plot_functions
 from multiprocessing import Pool
 
@@ -19,13 +24,18 @@ def main(arguments):
 
     plotconf_df = pd.read_csv(args.plot_list, sep=",", comment='#', quotechar='"', engine='python')
     plotconf_df = plotconf_df.fillna("")
+
     ROOT.gROOT.LoadMacro("root_logon.C")
-    # os.system(f"mkdir -p {args.plot_output_folder}")
-    if not os.path.exists(f"{args.plot_output_folder}/index.php"):
-        os.system(f"cp index.php {args.plot_output_folder}/index.php")
-    if not os.path.exists(f"{args.plot_output_folder}/jsroot_viewer.php"):
-        os.system(f"cp jsroot_viewer.php {args.plot_output_folder}/jsroot_viewer.php")
-    plotconf_df.apply(lambda row: plot_functions.plot(row, arrays, args.plot_output_folder), axis=1)
+    os.system(f"mkdir -p {args.plot_output_folder}")
+    php_files = ["index", "view"]
+    for php_f in php_files:
+      os.system(f"/bin/cp php/{php_f}.php {args.plot_output_folder}/{php_f}.php")
+
+    f = ROOT.TFile(f"{args.plot_output_folder}/histos.root", "recreate")
+
+    subfolders_list = []
+    plotconf_df.apply(lambda row: plot_functions.plot(row, arrays, f"{args.plot_output_folder}/", subfolders_list, f, php_files=php_files), axis=1)
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])
