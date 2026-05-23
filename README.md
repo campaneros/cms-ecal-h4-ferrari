@@ -14,3 +14,5 @@ for tests:
 
 python3 reco.py -i /eos/cms/store/group/dpg_ecal/comm_ecal/upgrade/testbeam/ECALTB_H4_Oct2025/DataTree/19435/0001.root -r 19435 -s 1 -ro /tmp/prova_ruben -opt electrons -po /eos/user/r/rgargiul/www/test_ferrari
 
+missing to add atot:eta:phi, check hadd, check further generalization in reco.py, check again reco_functions, check re-reco, go on workers, generalize numpy/cupy across all package
+
