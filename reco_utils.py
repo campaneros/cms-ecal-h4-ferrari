@@ -50,29 +50,35 @@ def split(waveforms, threshold=None, pre=5, post=10, baseline_samples=10):
     return argmax_idx, baseline, baseline_std, baseline_integral, (event_idx, chan_idx, window_indices)
 
 
-def find_5x5(charge_mean, ieta, iphi, fixed_5x5=None):
-    fake_mask = np.full(ieta.shape, True)
-    mask_5x5 = np.full(ieta.shape, True)
+def find_central_region(charge_mean, ix, iy, central_region_width, fixed_central_region=None, min_outer_over_seed_ratio=None):
+    fake_mask = np.full(ix.shape, True)
+    mask_central_region = np.full(ix.shape, True)
 
 
     while True:
-      if fixed_5x5:
-          seed_ch = np.argmax(np.logical_and(ieta==fixed_5x5[0],iphi==fixed_5x5[1]))
+      if fixed_central_region:
+          seed_ch = np.argmax(np.logical_and(ix==fixed_central_region[0],iy==fixed_central_region[1]))
           print(f"Seed channel: {seed_ch}", flush=True)
       else:
         charge_mean[~fake_mask] = 0
         seed_ch = np.argmax(charge_mean)
-      ieta_seed, iphi_seed = ieta[seed_ch], iphi[seed_ch]
-      mask_5x5 = np.logical_and(np.abs(ieta - ieta_seed) < 3, np.abs(iphi - iphi_seed) < 3)
-      mask_5x5[seed_ch] = False
-      seed_5x5_ratio = np.sum(charge_mean[mask_5x5]) * 24 / np.sum(mask_5x5) / charge_mean[seed_ch]
-      mask_5x5[seed_ch] = True
-      if fixed_5x5: return mask_5x5, seed_ch
-      if seed_5x5_ratio < 0.2:
+
+      if int(central_region_width) % 2 == 0: raise ValueError("Central region width MUST be odd")
+
+      all_minus_seed = central_region_width**2 - 1
+      cut = (central_region_width+1)/2.
+
+      ix_seed, iy_seed = ix[seed_ch], iy[seed_ch]
+      mask_central_region = np.logical_and(np.abs(ix - ix_seed) < cut, np.abs(iy - iy_seed) < cut)
+      mask_central_region[seed_ch] = False
+      seed_central_region_ratio = np.sum(charge_mean[mask_central_region]) * all_minus_seed / np.sum(mask_central_region) / charge_mean[seed_ch]
+      mask_central_region[seed_ch] = True
+      if fixed_central_region: return mask_central_region, seed_ch
+      if seed_central_region_ratio < min_outer_over_seed_ratio:
         fake_mask[seed_ch] = False
         continue
       else:
         break
     print(f"Seed channel: {seed_ch}", flush=True)
-    return mask_5x5, seed_ch
+    return mask_central_region, seed_ch
 

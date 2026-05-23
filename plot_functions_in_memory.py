@@ -61,7 +61,7 @@ def draw_TT_grid(hist, c):
       line.SetLineStyle(line_style)
       line.SetLineWidth(line_width)
       line.Draw("same")
-      lines.append(line)  
+      lines.append(line)
 
     # horizontal grid lines
     for j in range(1, 11, 5):
@@ -232,8 +232,6 @@ def plot(row, uproot_dict, outputfolder, subfolders_list, f=None, just_draw=Fals
         h.Draw("ZCOL")
         #print(f"drawing plots took: {time.time() - t0}s")
         # 5x5 grid fot TTs
-        if row.tt:
-          lines = draw_TT_grid(h, c)
 
         h.SetContour(int(row.contours))
         h.GetZaxis().SetTitle(row.zlabel)
@@ -243,6 +241,10 @@ def plot(row, uproot_dict, outputfolder, subfolders_list, f=None, just_draw=Fals
         c.SetRightMargin(0.18)
 
     h.GetXaxis().SetTitle(row.xlabel)
+
+    if row.add_commands.strip() != "":
+      exec(row.add_commands)
+      c.Update()
 
     t0 = time.time()
     f.cd()

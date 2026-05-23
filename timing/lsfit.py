@@ -144,10 +144,10 @@ def fit_pulse_iterative(waveforms, pulse, t, t_data_peak, t_template_peak, n_ite
 
 
 
-def run_fit(signal_window, mask_under_thr, max_idx, spline_file, sampling_rate, signal_samples_pre_peak):
-    Ts = 1/sampling_rate
+def lsfit(signal_window, valid, max_idx, values_max, **kwargs):
 
-    valid = ~mask_under_thr
+    globals().update(kwargs)
+    Ts = 1/sampling_rate
 
     idx_valid = np.where(valid)
 
@@ -174,12 +174,12 @@ def run_fit(signal_window, mask_under_thr, max_idx, spline_file, sampling_rate, 
 
     fit_time_valid = dt_valid + np.ones(dt_valid.shape)*signal_samples_pre_peak*Ts + max_idx_valid*Ts
 
-    fit_t = np.zeros(mask_under_thr.shape, dtype=np.float32)
+    fit_t = np.zeros(valid.shape, dtype=np.float32)
 
     fit_t[idx_valid] = fit_time_valid
 
-    amp_fit = np.zeros(mask_under_thr.shape, dtype=np.float32)
+    amp_fit = np.zeros(valid.shape, dtype=np.float32)
 
     amp_fit[idx_valid] = amp_valid
 
-    return (amp_fit, fit_t)
+    return {"amp": amp_fit, "time": fit_t}

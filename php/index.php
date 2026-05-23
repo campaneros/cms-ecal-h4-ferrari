@@ -101,6 +101,47 @@ body {
 </head>
 
 <body class="p-3">
+<!-- Breadcrumb navigation -->
+<nav class="navbar navbar-light bg-light border-bottom mb-3 px-3 py-2">
+
+    <div class="d-flex align-items-center flex-wrap">
+
+        <a href="/" class="text-decoration-none">
+            🏠
+        </a>
+
+        <?php
+        $uri   = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+        $parts = array_filter(explode('/', trim($uri, '/')));
+
+        $accum = '';
+
+        foreach ($parts as $i => $part) {
+
+            $accum .= '/' . $part;
+
+            echo '<span class="mx-2">/</span>';
+
+            if ($i < count($parts) - 1) {
+
+                echo '<a class="text-decoration-none" href="' .
+                     htmlspecialchars($accum) .
+                     '">' .
+                     htmlspecialchars($part) .
+                     '</a>';
+
+            } else {
+
+                echo '<span class="fw-light">' .
+                     htmlspecialchars($part) .
+                     '</span>';
+            }
+        }
+        ?>
+
+    </div>
+
+</nav>
 
 <h4>ROOT Canvas Viewer</h4>
 
@@ -176,6 +217,10 @@ async function main() {
         console.log("id:", id);
 
         card.innerHTML = `
+            <div class="card-header text-center fw-bold text-danger">
+                ${fileName}
+            </div>
+
             <div class="card-body p-1">
 
                 <div id="${id}" class="root-canvas"></div>
