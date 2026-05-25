@@ -4,7 +4,7 @@ import numpy as np
 @register_reco("bcp")
 def bcp_reco(tree, detector_name, detector_dict_piece):
 
-  bcp_clk = tree[detector_dict_piece["waves_branch"]].array(library="np")
+  bcp_clk = tree["bcp_clk"].array(library="np")
 
   det = detector_name
 

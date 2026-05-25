@@ -3,15 +3,16 @@ import numpy as np
 import multiprocessing as mp
 
 import reco_utils
-import timing as timing_module
 
+from timing import *
+
+from registry import get_reco
 
 def generic_reco(waves, detector_name, **kwargs):
 
   globals().update(kwargs)
 
   t0 = time.time()
-
 
   max_idx, baselines, baselines_std, baseline_integral, signal_window_3d_indices = reco_utils.split(waves, pre=signal_samples_pre_peak, post=signal_samples_post_peak, threshold=raw_threshold_before_peak_finding)
 
@@ -29,14 +30,19 @@ def generic_reco(waves, detector_name, **kwargs):
   else:
     values_max = waves[event_idx, chan_idx, max_idx]
 
+  if intercalib_list is not None:
+    values_max *= intercalib_list[None, :]
+
   mask_under_thr = values_max < charge_zerosup_peak_threshold
   waves[mask_under_thr, :] = 0
-
 
   if baseline_subtract:
     waves[~mask_under_thr, :] = waves[~mask_under_thr, :] - baselines[~mask_under_thr, None]
 
   signal_window = waves[*signal_window_3d_indices]
+
+  if intercalib_list is not None:
+    signal_window *= intercalib_list[None, :, None]
 
   charge = np.zeros_like(values_max)
   charge[~mask_under_thr] = np.sum(signal_window[~mask_under_thr, :], axis=-1)
@@ -145,7 +151,7 @@ def generic_reco(waves, detector_name, **kwargs):
     valid = ~mask_under_thr & timing_mask[None, :]
 
     for timing_method in timing_methods:
-      timing_function = getattr(timing_module, timing_method)
+      timing_function = get_reco(timing_method)
 
       timing_function_result = timing_function(signal_window, valid, max_idx, values_max, **kwargs)
 

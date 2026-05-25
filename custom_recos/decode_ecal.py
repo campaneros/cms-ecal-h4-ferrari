@@ -10,7 +10,6 @@ def decode_ecal(waves, gain_list):
     gain_is_high = (waves & bit12_mask) != 0
     amplitudes = (waves & amp_mask).astype(np.float32)
 
-
     if gain_list is not None:
         gains = gain_list[None, :, None]
         amplitudes *= np.where(gain_is_high, gains, 1)

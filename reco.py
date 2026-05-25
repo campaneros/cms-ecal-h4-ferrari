@@ -67,35 +67,42 @@ def main(arguments):
         print(f"reco {detector} ongoing")
         dd = detectors_dict[detector]
 
-        reco_dict[detector], geo_dict, chid_dict, gain_list = {}, None, None, None
-        if dd["ch_map"] == None: active_ch_list = slice(None)
-        elif isinstance(dd["ch_map"], str):
-          map_df = pd.read_csv(dd["ch_map"], comment='#')
-          active_row_list = (map_df["type"] == detector).tolist()
-          active_ch_list = (map_df["branch_ch"][map_df["type"] == detector]).tolist()
-          chid_dict = {var: map_df[var].to_numpy()[active_row_list] for var in dd["chid_vars_list"]}
-          if dd["geo_needed"] is not None:
-            geo_dict = {coord: map_df[coord].to_numpy()[active_row_list] for coord in dd["geo_needed"]}
-          if dd["apply_gain_ratios"]:
-            gain_list = map_df["high_over_low_gain_ratio"].to_numpy()[active_row_list]
-        elif isinstance(dd["ch_map"], list):
-          active_ch_list = dd["ch_map"]
 
-        if dd["generic_reco"]:
-            waves = tree[dd["waves_branch"]].array(library="np")[:, active_ch_list, :]
-            if dd["decode"] is not None: waves = get_reco(dd["decode"])(waves.astype(np.uint16), gain_list)
-            if dd["remove_last_n_samples"] != 0: waves = waves[:, :, : -dd["remove_last_n_samples"]]
-            if dd["to_be_inverted"]: waves = 4096 - waves #must be inverted if the signal are with negative rising slope
+        reco_dict[detector] = {}
+
+        if dd["generic_reco"] is not None:
+            gen_reco_dict = dd["generic_reco"]
+
+            geo_dict, chid_dict, gain_list, intercalib_list = None, None, None, None
+
+            if gen_reco_dict["ch_map"] == None: active_ch_list = slice(None)
+            elif isinstance(gen_reco_dict["ch_map"], str):
+              map_df = pd.read_csv(gen_reco_dict["ch_map"], comment='#')
+              active_row_list = (map_df["type"] == detector).tolist()
+              active_ch_list = (map_df["branch_ch"][map_df["type"] == detector]).tolist()
+              chid_dict = {var: map_df[var].to_numpy()[active_row_list] for var in gen_reco_dict["chid_vars_list"]}
+              if gen_reco_dict["geo_needed"] is not None:
+                geo_dict = {coord: map_df[coord].to_numpy()[active_row_list] for coord in gen_reco_dict["geo_needed"]}
+              if gen_reco_dict["apply_gain_ratios"] is not None:
+                gain_list = map_df[gen_reco_dict["apply_gain_ratios"]].to_numpy()[active_row_list]
+              if gen_reco_dict["apply_intercalib"]:
+                intercalib_list = map_df[gen_reco_dict["apply_intercalib"]].to_numpy()[active_row_list]
+            elif isinstance(gen_reco_dict["ch_map"], list):
+              active_ch_list = gen_reco_dict["ch_map"]
+
+            waves = tree[gen_reco_dict["waves_branch"]].array(library="np")[:, active_ch_list, :]
+            if gen_reco_dict["decode"] is not None: waves = get_reco(gen_reco_dict["decode"])(waves.astype(np.uint16), gain_list)
+            if gen_reco_dict["remove_last_n_samples"] != 0: waves = waves[:, :, : -gen_reco_dict["remove_last_n_samples"]]
+            if gen_reco_dict["to_be_inverted"]: waves = 4096 - waves #must be inverted if the signal are with negative rising slope
 
             reco_conf = copy.deepcopy(default_generic_reco_conf)
-            reco_conf.update(dd["reco_conf"])
+            reco_conf.update(gen_reco_dict["reco_conf"])
             reco_dict[detector]["mask"], reco_dict[detector]["arrays"] = reco_functions.generic_reco(
-              waves.astype(np.float32), detector, id=chid_dict, geo_dict=geo_dict, **reco_conf #n_cpus=args.n_cpus: not implemented
+              waves.astype(np.float32), detector, id=chid_dict, geo_dict=geo_dict, intercalib_list=intercalib_list, **reco_conf #n_cpus=args.n_cpus: not implemented
             )
 
         else:
             reco_dict[detector]["mask"], reco_dict[detector]["arrays"] = get_reco(dd["custom_reco"])(tree, detector, dd)
-            print(f"{detector}, selected: {reco_dict[detector]['mask'].sum()} events")
 
         print(""f"{detector} reco took {-time_reco_det + time.time():.1f} s")
     print(f"reco took: {-time_reco + time.time():.1f} s")

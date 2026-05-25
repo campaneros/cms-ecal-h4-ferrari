@@ -1,6 +1,8 @@
 import timing.pseudo_t
 import numpy as np
+from registry import register_reco
 
+@register_reco("fixed_thr")
 def fixed_thr(signal_window, valid, max_idx, values_max, **kwargs):
   globals().update(kwargs)
 

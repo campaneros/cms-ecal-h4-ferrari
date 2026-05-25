@@ -1,7 +1,7 @@
 import timing.pseudo_t
-import numpy as np
 from scipy import ndimage
-
+from registry import register_reco
+import numpy as np
 
 def build_peak_interp(
     rise_valid,
@@ -46,6 +46,7 @@ def build_peak_interp(
     return peak_value
 
 
+@register_reco("cf")
 def cf(signal_window, valid, max_idx, values_max, **kwargs):
   globals().update(kwargs)
 
