@@ -56,7 +56,7 @@ def generic_reco(waves, detector_name, **kwargs):
   if baseline_subtract:
     waves[~mask_under_thr, :] = waves[~mask_under_thr, :] - baselines[~mask_under_thr, None]
 
-  signal_window = waves[*signal_window_3d_indices]
+  signal_window = waves[tuple(signal_window_3d_indices)]
 
   if intercalib_list is not None:
     signal_window *= intercalib_list[None, :, None]
