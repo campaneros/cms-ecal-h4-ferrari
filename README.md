@@ -1,3 +1,7 @@
+Ferrari:
+Fast ECAL Rough Reconstruction and Analysis from Raw Inputs
+
+
 WARNING: Checks of all .sh part not done yet at this stage, but nothing was changed upstream, so no problems expected a priori. This release is not considered stable in that section.
 
 
@@ -6,7 +10,7 @@ For an electron spill (1k events) takes in average 5 seconds for the reconstruct
 We have the possibility to go on a dedicated GPU machine to go even faster [not needed but maybe helpful]
 
 
-Main changes	in code	structure w.r.t. 2025:
+Main changes	in code	structure w.r.t. 2025: github.com/delvecchiomarco/ECAL_TB2025
 - Removed hardcoded features as	much as	possible. in principle everything should be settable from config json or adding custom reco files in a dedicated folder
 - All detectors not requiring the generic-reco (the one starting from waveforms, defined in reco_functions) have custom reco defined in a custom-recos folder
 - Defined a registry with a dedicated decorator to tag custom-recos functions. Needed functions must be added in the plugin section of the config json so they are imported at runtime. Now two new parameters ("decode" and "custom_reco") in the config json defined which function (from the registry) is used to, respectively, pre-process waveforms (for generic-reco), or, to perform another reco from scratch (hodoscope / bcp clock)
