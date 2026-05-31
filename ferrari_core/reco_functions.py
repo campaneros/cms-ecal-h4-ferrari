@@ -32,32 +32,23 @@ def generic_reco(waves, detector_name, gain_is_high=False, gain_list=None, **kwa
 
   t0 = time.time()
 
-  max_idx, baselines, baselines_std, baseline_integral, signal_window_3d_indices = reco_utils.split(waves, pre=signal_samples_pre_peak, post=signal_samples_post_peak, threshold=raw_threshold_before_peak_finding)
+  max_idx, baselines, baselines_std, baseline_integral, signal_window_3d_indices = reco_utils.split(waves, pre=signal_samples_pre_peak, post=signal_samples_post_peak, baseline_samples=baseline_samples,threshold=raw_threshold_before_peak_finding)
 
   print(f"baselines evaluation took: {time.time() - t0}")
   t0 = time.time()
 
-  values_mean = xp.mean(waves, axis=2) # mean of all values
-  values_std = xp.std(waves, axis=2)   # std of all values
 
   event_idx = xp.arange(waves.shape[0])[:, None]        # shape (E, 1)
   chan_idx  = xp.arange(waves.shape[1])[None, :]        # shape (1, C)
 
-  if baseline_subtract:
-    values_max = waves[event_idx, chan_idx, max_idx] - baselines
-  else:
-    values_max = waves[event_idx, chan_idx, max_idx]
-
-  if intercalib_list is not None:
-    values_max *= intercalib_list[None, :]
-
-  mask_under_thr = values_max < charge_zerosup_peak_threshold
-  waves[mask_under_thr, :] = 0
-
-  if baseline_subtract:
-    waves[~mask_under_thr, :] = waves[~mask_under_thr, :] - baselines[~mask_under_thr, None]
+  values_mean = xp.mean(waves, axis=2) # mean of all values
+  values_std = xp.std(waves, axis=2)   # std of all values
 
   signal_window = waves[tuple(signal_window_3d_indices)]
+
+  if baseline_subtract:
+    print("subtracting bline")
+    signal_window = signal_window - baselines[:, :, None]
 
   if gain_list is not None:
       gains = gain_list[None, :, None]
@@ -66,6 +57,13 @@ def generic_reco(waves, detector_name, gain_is_high=False, gain_list=None, **kwa
 
   if intercalib_list is not None:
     signal_window *= intercalib_list[None, :, None]
+
+  values_max = np.max(signal_window, axis=2)
+
+  mask_under_thr = values_max < charge_zerosup_peak_threshold
+
+  signal_window[mask_under_thr, :] = 0
+
 
   charge = xp.zeros_like(values_max)
   charge[~mask_under_thr] = xp.sum(signal_window[~mask_under_thr, :], axis=-1)
@@ -83,8 +81,9 @@ def generic_reco(waves, detector_name, gain_is_high=False, gain_list=None, **kwa
   t0 = time.time()
 
   if geo_dict is not None:
-    ix, iy = (geo_dict[key] for key in coords_2d_list)
-    if coord_z is not None: iz = (geo_dict[key] for key in coord_z)
+    print(coords_2d_list)
+    ix, iy = (geo_dict[key] for key in coords_2d_list[:2])
+    if coord_z is not None: iz = geo_dict[coord_z]
     else: iz = None
 
     if not do_central_region: mask_central_region = xp.full(ix.shape, True)
@@ -101,8 +100,9 @@ def generic_reco(waves, detector_name, gain_is_high=False, gain_list=None, **kwa
 
       charge_seed = charge[:, seed_ch]
       charge_sum_central_region = xp.sum(charge[:, mask_central_region], axis=1)
+      print("type: ", charge_sum_central_region.dtype)
       charge_sum_central_region = xp.clip(charge_sum_central_region, seed_charge_threshold, None)
-
+      print("type: ", charge_sum_central_region.dtype)
       mask_low_charge_seed = charge_seed > seed_charge_threshold
 
       # amplitude_map of the central_region matrix
@@ -145,8 +145,10 @@ def generic_reco(waves, detector_name, gain_is_high=False, gain_list=None, **kwa
       #mask_selected_events = mask_low_charge_seed
 
     if do_centroid:
-      charge_fraction_central_region = xp.zeros(charge.shape)
-      charge_fraction_central_region[:, mask_central_region] = charge[:, mask_central_region] / charge_sum_central_region[:, xp.newaxis]
+      if not do_central_region:
+        charge_sum_central_region = xp.sum(charge[:, mask_central_region], axis=1)
+        charge_fraction_central_region = xp.zeros(charge.shape)
+        charge_fraction_central_region[:, mask_central_region] = charge[:, mask_central_region] / charge_sum_central_region[:, xp.newaxis]
 
       if w0_log_centroid is not None:
         w = xp.maximum(0.0,w0_log_centroid + xp.log(xp.clip(charge_fraction_central_region, 1e-8, None)))
@@ -163,6 +165,7 @@ def generic_reco(waves, detector_name, gain_is_high=False, gain_list=None, **kwa
 
     ix = xp.repeat(ix[xp.newaxis, :], charge.shape[0], axis=0)
     iy = xp.repeat(iy[xp.newaxis, :], charge.shape[0], axis=0)
+    if iz is not None: iz = xp.repeat(iz[xp.newaxis, :], charge.shape[0], axis=0)
 
   if do_tau:
       if do_central_region: tau_mask = mask_central_region
@@ -199,6 +202,7 @@ def generic_reco(waves, detector_name, gain_is_high=False, gain_list=None, **kwa
     per_ch_info.update({f"{det}_samples_mean": values_mean, f"{det}_samples_std": values_std})
   if geo_dict is not None:
     per_ch_info.update({f"{det}_{coords_2d_list[0]}": ix, f"{det}_{coords_2d_list[1]}": iy})
+    if iz is not None: per_ch_info.update({f"{det}_{coord_z}": iz})
   if id is not None:
     for var in id:
       per_ch_info.update({f"{det}_{var}": xp.repeat(id[var][xp.newaxis, :], waves.shape[0], axis=0)})

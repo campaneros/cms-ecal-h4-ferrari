@@ -5,6 +5,8 @@ import pandas as pd
 import importlib
 from pathlib import Path
 
+from concurrent.futures import ThreadPoolExecutor as tpe
+
 from . import reco_functions
 from . import plot_functions_in_memory as plot_functions
 from . import reco_utils
@@ -88,13 +90,21 @@ def main(arguments):
                 geo_dict = {coord: map_df[coord].to_numpy()[active_row_list] for coord in gen_reco_dict["geo_needed"]}
               if gen_reco_dict["apply_gain_ratios"] is not None:
                 gain_list = map_df[gen_reco_dict["apply_gain_ratios"]].to_numpy()[active_row_list]
-
               if gen_reco_dict["apply_intercalib"]:
                 intercalib_list = map_df[gen_reco_dict["apply_intercalib"]].to_numpy()[active_row_list]
             elif isinstance(gen_reco_dict["ch_map"], list):
               active_ch_list = gen_reco_dict["ch_map"]
 
-            waves = tree[gen_reco_dict["waves_branch"]].array(library="np")[:, active_ch_list, :]
+            print(active_ch_list, tree[gen_reco_dict["waves_branch"]].array(library="np").shape)
+
+            with tpe(max_workers=8) as decompr_exec, tpe(max_workers=8) as interpret_exec:
+                waves = tree[gen_reco_dict["waves_branch"]].array(library="np", decompression_executor=decompr_exec, interpretation_executor=interpret_exec)
+
+            print(f"{detector} waves shape: {waves.shape}")
+            time_read = time.time()
+            if len(waves.shape) == 4: waves = waves.reshape(waves.shape[0], waves.shape[1]*waves.shape[2], waves.shape[3]) #(n_board, n_ch) format
+            waves = waves[:, active_ch_list, :]
+
             if gen_reco_dict["decode_and_select_gains"] is not None:
                 waves, gain_is_high = get_routine(gen_reco_dict["decode_and_select_gains"])(waves.astype(np.uint16))
             if gen_reco_dict["remove_last_n_samples"] != 0: waves = waves[:, :, : -gen_reco_dict["remove_last_n_samples"]]
@@ -149,7 +159,16 @@ def main(arguments):
 
     # writing
     time_write = time.time()
-    branch_types = {k: (v.dtype, v.shape[1:]) for k, v in arrays.items()}
+
+
+    branch_types = {}
+
+    for k, v in arrays.items():
+        if len(v.shape) == 1:
+            branch_types[k] = v.dtype
+        else:
+            branch_types[k] = np.dtype((v.dtype, v.shape[1:]))
+
     compression_map = {"zlib": uproot.compression.ZLIB(level=1), "lz4": uproot.compression.LZ4(level=1), "none": None}
     with uproot.recreate(f"{args.reco_output_dir}/{args.run}_{args.spill}_reco.root", compression=compression_map[args.compression_type]) as f:
         tree = f.mktree("tree", branch_types)
