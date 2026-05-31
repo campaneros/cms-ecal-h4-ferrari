@@ -1,1 +1,0 @@
-root $1 -e 'tree->Print(); exit(0)' | grep -B 1 "File Size" | tr -d "\n" | sed 's/*Br/\n*Br/g' | awk '/\*Br/ {split($0, arr, "File Size  = "); split(arr[2], size, " "); print $3, size[1]}' | sed 's/://g' | sort -k2,2nr > $2
