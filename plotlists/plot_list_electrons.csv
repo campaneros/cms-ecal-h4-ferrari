@@ -38,7 +38,7 @@ charge_pos6_left_bottom,,ecal_single_charges,${ecal_charge},0,0,(${ecal_ieta_wit
 charge_pos7_center_bottom,,ecal_single_charges,${ecal_charge},0,0,(${ecal_ieta_within_5x5}==0) & (${ecal_iphi_within_5x5}==-1),kBlue,1000,0,10000,0,0,0,0,charge [ADC counts],ADC counts,, 
 charge_pos8_right_bottom,,ecal_single_charges,${ecal_charge},0,0,(${ecal_ieta_within_5x5}==1) & (${ecal_iphi_within_5x5}==-1),kBlue,1000,0,10000,0,0,0,0,charge [ADC counts],ADC counts,, 
 #,,,,,,,,,,,,,,,,,,
-amplitude_map_5x5,,main,${ecal_ieta_within_5x5},${ecal_iphi_within_5x5},${ecal_charge_divided_5x5},${ecal_charge_sum_5x5} > 0,0,5,-2.5,2.5,5,-2.5,2.5,1000,eta,phi,charge_{ch}/charge_{5x5},c.SetLogz();
+amplitude_map_5x5,1,main,${ecal_ieta_within_5x5},${ecal_iphi_within_5x5},${ecal_charge_divided_5x5},${ecal_charge_sum_5x5} > 0,0,5,-2.5,2.5,5,-2.5,2.5,1000,eta,phi,charge_{ch}/charge_{5x5},c.SetLogz();
 #,,,,,,,,,,,,,,,,,,
 mcp_delta_t,,main,"${mcp_cf_time}[:, 1]-${mcp_cf_time}[:, 0]",0,0,"(${mcp_charge}[:, 1]>0) & (${mcp_charge}[:, 0]>0)",kBlue,8000,-40,40,0,0,0,0,MCP C.F. T_{2}-T_{1} [ns],ns,, 
 #,,,,,,,,,,,,,,,,,,

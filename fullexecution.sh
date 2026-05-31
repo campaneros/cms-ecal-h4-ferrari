@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 # --- launch settings with beam|laser as input parameter ---
 if [ "$#" -lt 3 ]; then
     echo "Usage: $0 <run_number> <spill_number> <beam|laser|beam+laser> [noplots] [nounpack]"
@@ -17,7 +16,16 @@ else
   doplots="1"
 fi
 
-nounpack=$5
+dounpack=1
+if [ $4 == "nounpack" ]; then
+  dounpack=0
+elif [ $5 == "nounpack" ]; then
+  dounpack=0
+fi
+
+echo $4 $5
+
+echo $dounpack
 
 if [ "$mode" == "laser" ]; then
     option="laser"
@@ -37,7 +45,7 @@ fi
 echo "spill type is: " $option
 
 
-SPILL_TYPE="${SPILL}_${option}"
+SPILL_STR="${SPILL}_${option}"
 
 
 # --- Start global timer ---
@@ -46,7 +54,7 @@ start_time=$(date +%s)
 
 UNPACKED_FILE="${RECO_UNPACKED_OUTDIR}/DataTree/$RUN/${SPILL}.root"
 
-if [ "$nounpack" != "nounpack" ]; then
+if [ "$dounpack" -ne 0 ]; then
   mkdir -p ${RECO_UNPACKED_OUTDIR}/DataTree/$RUN/
   EBETE_DIR="/afs/cern.ch/user/e/ecalgit/EBeTe/"
 
@@ -65,23 +73,24 @@ fi
 cd $WORKING_DIR
 mkdir -p ${RECO_UNPACKED_OUTDIR}/reco/run_$RUN/
 
+PLOT_CURRENT_FOLDER=$PLOT_MAIN_FOLDER/run_$RUN/spill_$SPILL_STR/
+
 if [ "$doplots" == "1" ]; then
-  mkdir $PLOT_MAIN_FOLDER/run_$RUN/
-  PLOT_CURRENT_FOLDER=$PLOT_MAIN_FOLDER/run_$RUN/spill_$SPILL_TYPE/
+  mkdir ${PLOT_CURRENT_FOLDER}
 
-  mkdir $PLOT_CURRENT_FOLDER
-
-  #/bin/cp *.php $PLOT_MAIN_FOLDER
-  /bin/cp *.php $PLOT_MAIN_FOLDER/run_$RUN/
-  /bin/cp *.php $PLOT_CURRENT_FOLDER
+  /bin/cp ${PHP_FILES_DIR}/*.php $PLOT_MAIN_FOLDER
+  /bin/cp ${PHP_FILES_DIR}/*.php $PLOT_MAIN_FOLDER/run_$RUN/
+  /bin/cp ${PHP_FILES_DIR}/*.php $PLOT_CURRENT_FOLDER
   echo "plotting in: $PLOT_CURRENT_FOLDER"
 
-  plots_options="-p plotlists/plot_list_$option.csv -po $PLOT_CURRENT_FOLDER"
+  plots_options="-po $PLOT_CURRENT_FOLDER"
 else
   plots_options=""
 fi
 
 echo "Starting reconstruction..."
+
+echo "doplots: " $doplots
 
 python3 -m ferrari_core.reco -i ${UNPACKED_FILE} \
     -r "$RUN" \
@@ -96,15 +105,15 @@ total_time=$((end_time - start_time))
 echo "Total elapsed time: $total_time seconds."
 
 if [ "$doplots" == "1" ]; then
-  cp -rT "$PLOT_MAIN_FOLDER/run_$RUN/spill_$SPILL_TYPE" "$PLOT_MAIN_FOLDER/run_$RUN/${option}_current_spill"
+  cp -rT "$PLOT_MAIN_FOLDER/run_$RUN/spill_$SPILL_STR" "$PLOT_MAIN_FOLDER/run_$RUN/${option}_current_spill"
 
-  echo $option
-  if [ "$option" == "beam" ]; then
-    echo "writing folder path to hadd buffer"
-    echo $PLOT_MAIN_FOLDER/run_$RUN/spill_$SPILL_TYPE >> $PLOT_MAIN_FOLDER/to_hadd_buffer.txt
+  if [ "$option" != "laser" ]; then
+    echo "writing folder path to hadd buffer: $PLOT_MAIN_FOLDER/to_hadd_buffer.txt"
+    echo $PLOT_CURRENT_FOLDER >> $PLOT_MAIN_FOLDER/to_hadd_buffer.txt
   fi
 
-  if [ "$option" == "beam" ] && [ $((SPILL_NO % SPILL_REP)) -eq $((SPILL_REP - 1)) ]; then
+  if [ "$option" != "laser" ] && [ $((SPILL_NO % SPILL_HADD_INTERVAL)) -eq $((SPILL_HADD_INTERVAL - 1)) ]; then
     cp $PLOT_MAIN_FOLDER/to_hadd_buffer.txt $PLOT_MAIN_FOLDER/to_hadd_now.txt
+     echo "copying to hadd-now buffer"
   fi
 fi

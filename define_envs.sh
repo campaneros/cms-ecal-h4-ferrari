@@ -1,6 +1,6 @@
 export USE_CUDA=1
 
-export SPILL_REP=5
+export SPILL_HADD_INTERVAL=4
 export SPILL_LASER=3
 export PLOT_MAIN_FOLDER="/eos/user/m/mcampana/www/h4dqm/ECAL_TB_2025"
 export RECO_UNPACKED_OUTDIR="/eos/cms/store/group/dpg_ecal/comm_ecal/upgrade/testbeam/ECALTB_H4_Oct2025/"
@@ -12,3 +12,5 @@ export RAW_DIR="/eos/cms/store/group/dpg_ecal/comm_ecal/upgrade/testbeam/ECALTB_
 export LOGS_DIR="/eos/user/m/mcampana/www/h4dqm/ECAL_TB_2025/logs"
 export WORKING_DIR="/root/cms-ecal-h4-ferrari"
 export JSON_CONF="/root/cms-ecal-h4-ferrari/confs/detectors_conf.json"
+export PHP_FILES_DIR="/root/cms-ecal-h4-ferrari/ferrari_core/php/"
+export PLOTS_PLUGINS_FOLDER="/root/cms-ecal-h4-ferrari/custom_plot_functions/"
