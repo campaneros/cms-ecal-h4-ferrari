@@ -17,10 +17,14 @@ else
 fi
 
 dounpack=1
-if [ $4 == "nounpack" ]; then
-  dounpack=0
-elif [ $5 == "nounpack" ]; then
-  dounpack=0
+if [ $# -ge 4 ]; then
+  if [ $4 == "nounpack" ]; then
+    dounpack=0
+  fi
+elif [ $# -ge 5 ]; then
+  if [ $5 == "nounpack" ]; then
+    dounpack=0
+  fi
 fi
 
 echo $4 $5
@@ -55,19 +59,35 @@ start_time=$(date +%s)
 UNPACKED_FILE="${RECO_UNPACKED_OUTDIR}/DataTree/$RUN/${SPILL}.root"
 
 if [ "$dounpack" -ne 0 ]; then
+
   mkdir -p ${RECO_UNPACKED_OUTDIR}/DataTree/$RUN/
-  EBETE_DIR="/afs/cern.ch/user/e/ecalgit/EBeTe/"
 
-  cd ${EBETE_DIR}
+  if [ $UNPACKER_ROUTINE == "DANTE" ]; then
 
-  export LD_LIBRARY_PATH="${EBETE_DIR}/build:$LD_LIBRARY_PATH"
+    cd ${DANTE_DIR}
 
-  echo "Unpacking run $RUN spill $SPILL with EBeTe..."
+    export LD_LIBRARY_PATH="${DANTE_DIR}/build:$LD_LIBRARY_PATH"
 
-  echo "./h4_raw2root ${RAW_DIR}/$RUN/$SPILL.raw ${UNPACKED_FILE}"
-  ./h4_raw2root ${RAW_DIR}/$RUN/$SPILL.raw ${UNPACKED_FILE} > ${RECO_UNPACKED_OUTDIR}/DataTree/$RUN/${SPILL}.txt
+    echo "Unpacking run $RUN spill $SPILL with DANTE..."
 
-  echo "Unpacked DONE for run $RUN spill $SPILL with EBeTe..."
+    echo "./h4_raw2root ${RAW_DIR}/$RUN/$SPILL.raw ${UNPACKED_FILE}"
+    ./h4_raw2root ${RAW_DIR}/$RUN/$SPILL.raw ${UNPACKED_FILE} > ${RECO_UNPACKED_OUTDIR}/DataTree/$RUN/${SPILL}.txt
+
+    echo "Unpacked DONE for run $RUN spill $SPILL with DANTE..."
+  elif [ $UNPACKER_ROUTINE == "NUMPY" ]; then
+
+    export PYTHONPATH=$PYTHONPATH:${NUMPY_UNPACKED_DIR}
+
+    echo "Unpacking run $RUN spill $SPILL with NUMPY..."
+
+    echo "python3 test/unpack_spill.py ${RAW_DIR}/$RUN/$SPILL.raw ${UNPACKED_FILE}"
+
+    python3 -m test.unpack_spill ${RAW_DIR}/$RUN/$SPILL.raw ${UNPACKED_FILE}
+
+    echo "Unpacked DONE for run $RUN spill $SPILL with NUMPY..."
+  else
+    echo "Check your unpacking routind in the define .sh"
+  fi
 fi
 
 cd $WORKING_DIR
