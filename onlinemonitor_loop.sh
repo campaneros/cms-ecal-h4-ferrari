@@ -13,7 +13,7 @@ orig=$(pwd)
 while true; do
 
         sleep 0.1
-        xrdcp -f "root://eospublic.cern.ch//eos/experiment/muoncollider/data/crilin/h2-2025/last_file.txt" /tmp/last_file.txt
+        xrdcp -f "/eos/cms/store/group/dpg_ecal/comm_ecal/upgrade/testbeam/ECALTB_H4_Jun2026/run_list.txt" /tmp/last_file.txt
 
         echo "last: $(cat /tmp/last_file.txt), current: $(cat /tmp/current_file.txt)"
 
@@ -32,6 +32,17 @@ while true; do
   #TOCCA MANDA PROCESS_RUN QUA!!
 #  
 #	filename=$(cat /tmp/last_file.txt | awk '{print $1}')
+	run=$(cat /tmp/last_file.txt | awk '{print $1}')
+	spill=$(cat /tmp/last_file.txt | awk '{print $2}')
+	filename=$(cat /tmp/last_file.txt | awk '{print $3}')
+	mode=$(cat /tmp/last_file.txt | awk '{print $4}')
+	
+
+	echo $run
+	echo $spill
+	echo $mode
+	echo './fullexecution.sh ${run} $spill $mode'
+	./fullexecution.sh $run $spill $mode 
 #	conf=$(cat /tmp/last_file.txt | awk '{print $2}')
 #
 #	run_name=$(echo $filename | awk -F '_' '{print $(NF-3)}')

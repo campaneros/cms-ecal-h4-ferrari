@@ -53,3 +53,6 @@ For tests run a command like this:
 python3 -m ferrari_core.reco -i /eos/cms/store/group/dpg_ecal/comm_ecal/upgrade/testbeam/ECALTB_H4_Oct2025/DataTree/19435/0001.root -r 19327 -s 1 -ro /tmp/testing/ -opt electrons -po </eos/user/r/rgargiul/www/test_ferrari>
 ```
 Electrons and laser spills tested for now, from run 19327
+
+
+A script available to contously kinit in ecalgit launch_set_kinit.sh: it launcha script every 20 hours that does the kinit.

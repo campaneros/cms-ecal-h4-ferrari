@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source define_envs.sh
+
 # --- launch settings with beam|laser as input parameter ---
 if [ "$#" -lt 3 ]; then
     echo "Usage: $0 <run_number> <spill_number> <beam|laser|beam+laser> [noplots] [nounpack]"
@@ -90,12 +92,19 @@ if [ "$dounpack" -ne 0 ]; then
   fi
 fi
 
-cd $WORKING_DIR
+cd ${WORKING_DIR}
 mkdir -p ${RECO_UNPACKED_OUTDIR}/reco/run_$RUN/
 
 PLOT_CURRENT_FOLDER=$PLOT_MAIN_FOLDER/run_$RUN/spill_$SPILL_STR/
 
 if [ "$doplots" == "1" ]; then
+
+  Run_dir="${PLOT_MAIN_FOLDER}/run_${RUN}/"
+  if [ ! -d "$Run_dir" ]; then
+	    mkdir "Run_dir"
+  fi
+  echo ${PLOT_MAIN_FOLDER}
+  mkdir ${PLOT_MAIN_FOLDER}/run_${RUN}/
   mkdir ${PLOT_CURRENT_FOLDER}
 
   /bin/cp ${PHP_FILES_DIR}/*.php $PLOT_MAIN_FOLDER
