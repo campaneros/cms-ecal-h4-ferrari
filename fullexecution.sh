@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source define_envs.sh
+source /afs/cern.ch/user/e/ecalgit/cms-ecal-h4-ferrari/define_envs.sh
 
 # --- launch settings with beam|laser as input parameter ---
 if [ "$#" -lt 3 ]; then
@@ -58,7 +58,7 @@ SPILL_STR="${SPILL}_${option}"
 start_time=$(date +%s)
 
 
-UNPACKED_FILE="${RECO_UNPACKED_OUTDIR}/DataTree/$RUN/${SPILL}.root"
+UNPACKED_FILE="${RECO_UNPACKED_OUTDIR}/DataTree_dqm/$RUN/${SPILL}.root"
 
 if [ "$dounpack" -ne 0 ]; then
 
@@ -80,6 +80,7 @@ if [ "$dounpack" -ne 0 ]; then
 
     export PYTHONPATH=$PYTHONPATH:${NUMPY_UNPACKED_DIR}
 
+    cd ${NUMPY_UNPACKED_DIR}
     echo "Unpacking run $RUN spill $SPILL with NUMPY..."
 
     echo "python3 test/unpack_spill.py ${RAW_DIR}/$RUN/$SPILL.raw ${UNPACKED_FILE}"
@@ -93,13 +94,13 @@ if [ "$dounpack" -ne 0 ]; then
 fi
 
 cd ${WORKING_DIR}
-mkdir -p ${RECO_UNPACKED_OUTDIR}/reco/run_$RUN/
+mkdir -p ${RECO_UNPACKED_OUTDIR}/reco_dmq/run_$RUN/
 
 PLOT_CURRENT_FOLDER=$PLOT_MAIN_FOLDER/run_$RUN/spill_$SPILL_STR/
 
 if [ "$doplots" == "1" ]; then
 
-  Run_dir="${PLOT_MAIN_FOLDER}/run_${RUN}/"
+  Run_dir="${PLOT_MAIN_FOLDER}/run_worker_${RUN}/"
   if [ ! -d "$Run_dir" ]; then
 	    mkdir "Run_dir"
   fi
@@ -121,10 +122,12 @@ echo "Starting reconstruction..."
 
 echo "doplots: " $doplots
 
+
+cd ${WORKING_DIR}
 python3 -m ferrari_core.reco -i ${UNPACKED_FILE} \
     -r "$RUN" \
     -s "$SPILL" \
-    -ro ${RECO_UNPACKED_OUTDIR}/reco/run_$RUN/ \
+    -ro ${RECO_UNPACKED_OUTDIR}/reco_dqm/run_$RUN/ \
     -j ${JSON_CONF} \
     -opt $option \
     --do-plots $doplots $plots_options
